@@ -24,12 +24,30 @@
     <ClInclude Include="debugger.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="luapp\constexprTypename.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="luapp\luapp50.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lua50\lauxlib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lua50\lua.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lua50\lualib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="pch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="luapp\luapp50.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

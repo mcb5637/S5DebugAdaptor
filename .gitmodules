@@ -1,0 +1,3 @@
+[submodule "S5DebugAdaptor/luapp"]
+	path = S5DebugAdaptor/luapp
+	url = https://github.com/mcb5637/Luapp.git

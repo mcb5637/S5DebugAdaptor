@@ -2,6 +2,12 @@
 #include "pch.h"
 #include "luapp/luapp50.h"
 #include "debugger.h"
+#include "adaptor.h"
+#include "server.h"
+
+debug_lua::Debugger debugger{};
+//std::unique_ptr<debug_lua::Adaptor> adap = nullptr;
+std::unique_ptr<debug_lua::Server> serv = nullptr;
 
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
@@ -11,6 +17,9 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
+		//adap = std::make_unique<debug_lua::Adaptor>(debugger);
+		serv = std::make_unique<debug_lua::Server>(debugger);
+		break;
     case DLL_THREAD_ATTACH:
     case DLL_THREAD_DETACH:
     case DLL_PROCESS_DETACH:
@@ -50,16 +59,25 @@ struct DebuggerOrig {
 
 DebuggerOrig dbg{};
 
+//std::unique_ptr<debug_lua::Server> server = nullptr;
+
 extern "C" {
 	void __declspec(dllexport) __stdcall AddLuaState(lua_State* L) {
 		dbg.Load();
 		if (dbg.AddLuaState)
 			dbg.AddLuaState(L);
+		debugger.OnStateAdded(L);
+		/*if (server == nullptr) {
+			server = std::make_unique<debug_lua::Server>(debugger);
+		}*/
 	}
 
 	void __declspec(dllexport) __stdcall RemoveLuaState(lua_State* L) {
 		if (dbg.RemoveLuaState)
 			dbg.RemoveLuaState(L);
+		debugger.OnStateClosed(L);
+		if (debugger.GetStates().empty())
+			serv = nullptr;
 	}
 
 	void __declspec(dllexport) __stdcall NewFile(lua_State* L, const char* filename, const char* filedata, size_t len) {

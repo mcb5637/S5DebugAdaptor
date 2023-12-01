@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="lua">
+      <UniqueIdentifier>{906b1b11-5398-4ccc-be19-f289c23ddf72}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -24,19 +27,28 @@
     <ClInclude Include="debugger.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="luapp\constexprTypename.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="luapp\luapp50.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="lua50\lauxlib.h">
-      <Filter>Header Files</Filter>
+      <Filter>lua</Filter>
     </ClInclude>
     <ClInclude Include="lua50\lua.h">
-      <Filter>Header Files</Filter>
+      <Filter>lua</Filter>
     </ClInclude>
     <ClInclude Include="lua50\lualib.h">
+      <Filter>lua</Filter>
+    </ClInclude>
+    <ClInclude Include="luapp\luapp50.h">
+      <Filter>lua</Filter>
+    </ClInclude>
+    <ClInclude Include="luapp\constexprTypename.h">
+      <Filter>lua</Filter>
+    </ClInclude>
+    <ClInclude Include="adaptor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="server.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Hooks.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -48,6 +60,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="luapp\luapp50.cpp">
+      <Filter>lua</Filter>
+    </ClCompile>
+    <ClCompile Include="adaptor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="server.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Hooks.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

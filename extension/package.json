@@ -9,13 +9,38 @@
   "categories": [
     "Debuggers"
   ],
-  "activationEvents": ["*"],
+  "activationEvents": ["onDebug", "*"],
   "main": "./dist/extension.js",
   "contributes": {
-    "commands": [
+    "breakpoints": [{ "language": "lua" }],
+    "debuggers": [
       {
-        "command": "s5luadebug.helloWorld",
-        "title": "Hello World"
+        "type": "s5lua",
+        "label": "S5 Lua Debug",
+
+        "configurationAttributes": {
+          "launch": {
+            
+          }
+        },
+
+        "initialConfigurations": [
+          {
+            "type": "s5lua",
+            "request": "launch"
+          }
+        ],
+
+        "configurationSnippets": [
+          {
+            "label": "S5 Lua Debug: Launch",
+            "description": "A new configuration for attaching to S5",
+            "body": {
+              "type": "s5lua",
+              "request": "launch"
+            }
+          }
+        ]
       }
     ]
   },

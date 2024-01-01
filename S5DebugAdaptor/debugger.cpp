@@ -168,6 +168,8 @@ void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
     }
     if (th->LineFix && ev == lua::HookEvent::Line) {
         th->LineFix = false;
+        th->LineFixLevel = 0;
+        th->LineFixLine = -1;
         th->CheckHooked();
     }
 

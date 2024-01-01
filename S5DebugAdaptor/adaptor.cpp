@@ -39,16 +39,24 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 				while (L.Debug_GetStack(lvl, i, lua::DebugInfoOptions::Line | lua::DebugInfoOptions::Name |
 					lua::DebugInfoOptions::Source, false)) {
 
-					dap::Source source;
-					source.name = i.ShortSrc;
-					source.path = i.Source;
-
 					dap::StackFrame frame;
+					frame.name = L.Debug_GetNameForStackFunc(lvl);
+					if (i.What != nullptr && i.What == std::string_view{ "C" }) {
+						frame.name += " C code";
+					}
+					else if (i.Source != nullptr && i.Source == std::string_view{ "?" }) {
+						frame.name += " unknown lua";
+					}
+					else {
+						dap::Source source;
+						source.name = i.ShortSrc;
+						source.path = i.Source;
+						frame.source = source;
+					}
+
 					frame.line = i.CurrentLine;
 					frame.column = 1;
-					frame.name = i.Name == nullptr ? "" : i.Name;
 					frame.id = EncodeStackFrame(l, lvl);
-					frame.source = source;
 					auto [ds, dl] = DecodeStackFrame(frame.id);
 
 					response.stackFrames.push_back(frame);

@@ -175,8 +175,12 @@
     <ClInclude Include="lua50\lualib.h" />
     <ClInclude Include="luapp\constexprTypename.h" />
     <ClInclude Include="luapp\luapp50.h" />
+    <ClInclude Include="luapp\luapp_common.h" />
+    <ClInclude Include="luapp\luapp_decorator.h" />
+    <ClInclude Include="luapp\luapp_userdata.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="server.h" />
+    <ClInclude Include="shok.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="adaptor.cpp" />
@@ -194,6 +198,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="server.cpp" />
+    <ClCompile Include="shok.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="vcpkg.json" />

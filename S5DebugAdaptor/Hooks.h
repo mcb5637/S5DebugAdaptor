@@ -1,6 +1,7 @@
 #pragma once
 #include <initializer_list>
 #include <cstdint>
+#include <functional>
 using byte = uint8_t;
 
 namespace debug_lua {
@@ -12,7 +13,7 @@ namespace debug_lua {
 	public:
 		static void InstallHook();
 
-		static void (*RunCallback)();
+		static std::function<void()> RunCallback;
 
 		static void SendCheckRun();
 

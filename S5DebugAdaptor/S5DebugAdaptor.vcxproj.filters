@@ -51,6 +51,18 @@
     <ClInclude Include="Hooks.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="luapp\luapp_common.h">
+      <Filter>lua</Filter>
+    </ClInclude>
+    <ClInclude Include="luapp\luapp_decorator.h">
+      <Filter>lua</Filter>
+    </ClInclude>
+    <ClInclude Include="luapp\luapp_userdata.h">
+      <Filter>lua</Filter>
+    </ClInclude>
+    <ClInclude Include="shok.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -72,6 +84,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Hooks.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="shok.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

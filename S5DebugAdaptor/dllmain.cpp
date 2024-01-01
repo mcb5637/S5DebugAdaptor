@@ -66,10 +66,7 @@ extern "C" {
 		dbg.Load();
 		if (dbg.AddLuaState)
 			dbg.AddLuaState(L);
-		debugger.OnStateAdded(L);
-		/*if (server == nullptr) {
-			server = std::make_unique<debug_lua::Server>(debugger);
-		}*/
+		debugger.OnStateAdded(L, nullptr);
 	}
 
 	void __declspec(dllexport) __stdcall RemoveLuaState(lua_State* L) {
@@ -98,6 +95,7 @@ extern "C" {
 	void __declspec(dllexport) __stdcall Break(lua_State* L) {
 		if (dbg.Break)
 			dbg.Break(L);
+		debugger.OnBreak(L);
 	}
 
 	void __declspec(dllexport) __stdcall ShowExecuteLine() {

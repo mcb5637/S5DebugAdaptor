@@ -35,7 +35,7 @@ void __declspec(naked) winprocasm() {
 	}
 }
 
-void (*debug_lua::Hooks::RunCallback)() = nullptr;
+std::function<void()> debug_lua::Hooks::RunCallback{};
 bool Hooked = false;
 void debug_lua::Hooks::InstallHook()
 {

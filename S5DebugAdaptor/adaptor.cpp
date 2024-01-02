@@ -7,6 +7,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 	Session->registerHandler([](const dap::InitializeRequest&) {
 		dap::InitializeResponse response;
 		response.supportsConfigurationDoneRequest = true;
+		response.supportsSetVariable = true;
 		return response;
 		});
 
@@ -69,7 +70,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 			try {
 				return c.Get();
 			}
-			catch (const std::invalid_argument& ia) {
+			catch (const std::invalid_argument&) {
 				return dap::Error("Unknown threadId '%d'", int(request.threadId));
 			}
 			catch (const lua::LuaException& e) {
@@ -95,7 +96,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 			try {
 				return c.Get();
 			}
-			catch (const std::invalid_argument& ia) {
+			catch (const std::invalid_argument&) {
 				return dap::Error("Unknown frameId '%d'", int(request.frameId));
 			}
 			catch (const lua::LuaException& e) {
@@ -125,8 +126,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 				}
 
 				int num = 1;
-				const char* n = L.Debug_GetLocal(lvl, num);
-				while (n != nullptr) {
+				while (const char* n = L.Debug_GetLocal(lvl, num)) {
 					dap::Variable currentLineVar;
 					currentLineVar.name = n;
 					currentLineVar.type = L.TypeName(L.Type(-1));
@@ -135,13 +135,11 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 					response.variables.push_back(currentLineVar);
 
 					++num;
-					n = L.Debug_GetLocal(lvl, num);
 				}
 				L.SetTop(t+1);
 
 				num = 1;
-				n = L.Debug_GetUpvalue(func, num);
-				while (n != nullptr) {
+				while (const char* n = L.Debug_GetUpvalue(func, num)) {
 					dap::Variable currentLineVar;
 					currentLineVar.name = n;
 					currentLineVar.type = L.TypeName(L.Type(-1));
@@ -150,7 +148,6 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 					response.variables.push_back(currentLineVar);
 
 					++num;
-					n = L.Debug_GetUpvalue(func, num);
 				}
 				L.SetTop(t);
 
@@ -160,8 +157,105 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 			try {
 				return c.Get();
 			}
-			catch (const std::invalid_argument& ia) {
+			catch (const std::invalid_argument&) {
 				return dap::Error("Unknown variablesReference '%d'", int(request.variablesReference));
+			}
+			catch (const lua::LuaException& e) {
+				return dap::Error("Lua error: '%s'", e.what());
+			}
+		});
+
+	Session->registerHandler([&](const dap::SetVariableRequest& request)
+		-> dap::ResponseOrError<dap::SetVariableResponse> {
+			auto c = LuaExecutionPackagedTask<dap::SetVariableResponse>{ [this, request]() {
+				auto [s, lvl] = DecodeStackFrame(request.variablesReference);
+				lua::State L{ s.L };
+				lua::DebugInfo i{};
+				dap::SetVariableResponse response;
+
+				int t = L.GetTop();
+				if (!L.Debug_GetStack(lvl, i, lua::DebugInfoOptions::Source, true)) {
+					L.SetTop(t);
+					throw std::invalid_argument{ "invalid stack lvl" };
+				}
+				int func = L.ToAbsoluteIndex(-1);
+
+				if (i.What != nullptr && i.What == std::string_view{ "C" }) {
+					L.SetTop(t);
+					throw std::invalid_argument{ "c func" };
+				}
+
+				int num = 1;
+				while (const char* n = L.Debug_GetLocal(lvl, num)) {
+					L.Pop(1);
+					if (n == request.name) {
+						Dbg.EvaluateInContext(request.value, L, lvl);
+						L.SetTop(t + 2);
+						response.value = L.ToDebugString(-1);
+						L.Debug_SetLocal(lvl, num);
+						L.SetTop(t);
+						return response;
+					}
+					++num;
+				}
+				L.SetTop(t + 1);
+
+				num = 1;
+				while (const char* n = L.Debug_GetUpvalue(func, num)) {
+					L.Pop(1);
+					if (n == request.name) {
+						Dbg.EvaluateInContext(request.value, L, lvl);
+						L.SetTop(t + 2);
+						response.value = L.ToDebugString(-1);
+						L.Debug_SetUpvalue(func, num);
+						L.SetTop(t);
+						return response;
+					}
+					++num;
+				}
+				L.SetTop(t);
+
+				throw std::invalid_argument{ "variable not found" };
+				} };
+			Dbg.RunInSHoKThread(c);
+			try {
+				return c.Get();
+			}
+			catch (const std::invalid_argument&) {
+				return dap::Error("Unknown variablesReference '%d'", int(request.variablesReference));
+			}
+			catch (const lua::LuaException& e) {
+				return dap::Error("Lua error: '%s'", e.what());
+			}
+		});
+
+	Session->registerHandler([&](const dap::EvaluateRequest& request)
+		-> dap::ResponseOrError<dap::EvaluateResponse> {
+			auto c = LuaExecutionPackagedTask<dap::EvaluateResponse>{ [this, request]() {
+				lua::State L;
+				int lvl;
+				if (request.frameId.has_value()) {
+					auto [s, lvl2] = DecodeStackFrame(*request.frameId);
+					L = s.L;
+					lvl = lvl2;
+				}
+				else {
+					lvl = 0;
+					L = Dbg.GetStates().back().L;
+				}
+				
+				dap::EvaluateResponse r{};
+				int t = L.GetTop();
+
+				int n = Dbg.EvaluateInContext(request.expression, L, lvl);
+				r.result = Dbg.OutputString(L, n);
+				
+				L.SetTop(t);
+				return r;
+				} };
+			Dbg.RunInSHoKThread(c);
+			try {
+				return c.Get();
 			}
 			catch (const lua::LuaException& e) {
 				return dap::Error("Lua error: '%s'", e.what());

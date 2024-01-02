@@ -97,7 +97,11 @@ namespace debug_lua {
 		void RunInSHoKThread(LuaExecutionTask& t);
 		void Command(Request r);
 
+		int EvaluateInContext(std::string_view s, lua::State L, int lvl);
+		std::string OutputString(lua::State L, int n);
+
 	private:
+		bool IsIdentifier(std::string_view s);
 		void CheckRun();
 		void CheckHooked();
 		void SetHooked(DebugState& s, bool h, bool imm);
@@ -108,5 +112,9 @@ namespace debug_lua {
 		static void Hook(lua::State L, lua::ActivationRecord ar);
 
 		int Log(lua::State L);
+		int GetLocal(lua::State L);
+		int SetLocal(lua::State L);
+		int GetUpvalue(lua::State L);
+		int SetUpvalue(lua::State L);
 	};
 }

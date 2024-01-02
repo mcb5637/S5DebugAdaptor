@@ -3,6 +3,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <future>
+#include <map>
 
 #include "luapp/luapp50.h"
 
@@ -53,6 +54,11 @@ namespace debug_lua {
 		}
 	};
 
+	struct BreakpointFile {
+		std::string Filename;
+		std::vector<int> Lines;
+	};
+
 	class Debugger {
 	public:
 		enum class Status : int {
@@ -76,12 +82,14 @@ namespace debug_lua {
 		std::list<LuaExecutionTask*> Tasks;
 		bool HasTasks = false, LineFix = false;
 		int LineFixLine = -1, LineFixLevel = 0;
+		std::map<int, std::vector<BreakpointFile*>> BreakpointLookup;
 
 	public:
 		IDebugEventHandler* Handler = nullptr;
 		Status St = Status::Running;
 		Request Re = Request::Resume;
 		int StepToLevel = 0;
+		std::vector<BreakpointFile> Breakpoints; // call RebuildBreakpoints after modifying, otherwise you get dangling pointers!
 
 		std::mutex StatesMutex;
 
@@ -96,6 +104,7 @@ namespace debug_lua {
 		// remember to Get the task
 		void RunInSHoKThread(LuaExecutionTask& t);
 		void Command(Request r);
+		void RebuildBreakpoints();
 
 		int EvaluateInContext(std::string_view s, lua::State L, int lvl);
 		std::string OutputString(lua::State L, int n);

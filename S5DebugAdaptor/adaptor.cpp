@@ -307,23 +307,45 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 		return c.Get();
 		});
 
-	Session->registerHandler([&](const dap::SetBreakpointsRequest& request) {
-		dap::SetBreakpointsResponse response;
+	Session->registerHandler([&](const dap::SetBreakpointsRequest& request) 
+		-> dap::ResponseOrError<dap::SetBreakpointsResponse> {
+		auto c = LuaExecutionPackagedTask<dap::SetBreakpointsResponse>{ [this, request]() {
+				if (!request.source.path.has_value())
+					throw std::invalid_argument{"unknown"};
 
-		/*auto breakpoints = request.breakpoints.value({});
-		if (request.source.sourceReference.value(0) == sourceReferenceId) {
-			debugger.clearBreakpoints();
-			response.breakpoints.resize(breakpoints.size());
-			for (size_t i = 0; i < breakpoints.size(); i++) {
-				debugger.addBreakpoint(breakpoints[i].line);
-				response.breakpoints[i].verified = breakpoints[i].line < numSourceLines;
-			}
+				dap::SetBreakpointsResponse r;
+				const dap::string& p = *request.source.path;
+				auto it = std::find_if(Dbg.Breakpoints.begin(), Dbg.Breakpoints.end(), [p](BreakpointFile f) {return p == f.Filename; });
+				BreakpointFile* f;
+				if (it == Dbg.Breakpoints.end()) {
+					f = &Dbg.Breakpoints.emplace_back();
+					f->Filename = p;
+				}
+				else {
+					f = &(*it);
+				}
+
+				f->Lines.clear();
+				if (request.breakpoints.has_value()) {
+					for (const auto& b : *request.breakpoints) {
+						f->Lines.push_back(static_cast<int>(b.line));
+						auto& br = r.breakpoints.emplace_back();
+						br.line = static_cast<int>(b.line);
+						br.verified = true;
+					}
+				}
+
+				Dbg.RebuildBreakpoints();
+
+				return r;
+				} };
+		Dbg.RunInSHoKThread(c);
+		try {
+			return c.Get();
 		}
-		else {
-			response.breakpoints.resize(breakpoints.size());
-		}*/
-		// TODO
-		return response;
+		catch (const std::invalid_argument&) {
+			return dap::Error("Unknown source");
+		}
 		});
 
 	Session->registerHandler([&](const dap::SetExceptionBreakpointsRequest&) {

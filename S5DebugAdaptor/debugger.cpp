@@ -78,6 +78,17 @@ void debug_lua::Debugger::Command(Request r)
     CheckHooked();
 }
 
+void debug_lua::Debugger::RebuildBreakpoints()
+{
+    BreakpointLookup.clear();
+    for (auto& b : Breakpoints) {
+        for (auto l : b.Lines) {
+            BreakpointLookup[l].push_back(&b);
+        }
+    }
+    CheckHooked();
+}
+
 int debug_lua::Debugger::EvaluateInContext(std::string_view s, lua::State L, int lvl)
 {
     std::string pre = "";
@@ -169,7 +180,7 @@ void debug_lua::Debugger::CheckRun()
 void debug_lua::Debugger::CheckHooked()
 {
     std::unique_lock lo{ StatesMutex };
-    bool h = Re != Request::Resume;
+    bool h = Re != Request::Resume || !BreakpointLookup.empty();
     for (auto& s : States)
         SetHooked(s, h, LineFix);
 }
@@ -237,6 +248,9 @@ void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
     L.Pop(1);
     auto& s = th->GetState(L.GetState());
 
+    int line = -1;
+    bool checkBreakpoint = false;
+
     if (th->LineFix && ar.Matches(lua::HookEvent::Count)) {
         lua::DebugInfo i{};
         if (!L.Debug_GetStack(0, i, lua::DebugInfoOptions::Line, false))
@@ -247,12 +261,18 @@ void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
         }
         th->LineFixLine = i.CurrentLine;
         th->LineFixLevel = lvl;
+        line = i.CurrentLine;
+        checkBreakpoint = true;
     }
-    if (th->LineFix && ar.Matches(lua::HookEvent::Line)) {
-        th->LineFix = false;
-        th->LineFixLevel = 0;
-        th->LineFixLine = -1;
-        th->CheckHooked();
+    if (ar.Matches(lua::HookEvent::Line)) {
+        if (th->LineFix) {
+            th->LineFix = false;
+            th->LineFixLevel = 0;
+            th->LineFixLine = -1;
+            th->CheckHooked();
+        }
+        line = ar.Line();
+        checkBreakpoint = true;
     }
 
     th->TranslateRequest(L);
@@ -260,6 +280,21 @@ void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
         th->St = Status::Paused;
         if (th->Handler)
             th->Handler->OnPaused(s, Reason::Pause, "");
+    }
+    else if (checkBreakpoint && !th->BreakpointLookup.empty() && th->St == Status::Running) {
+        auto it = th->BreakpointLookup.find(line);
+        if (it != th->BreakpointLookup.end()) {
+            auto dinf = L.Debug_GetInfoFromAR(ar, lua::DebugInfoOptions::Source);
+            if (dinf.Source != nullptr) {
+                auto it2 = std::find_if(it->second.begin(), it->second.end(), [dinf](BreakpointFile* f) {return dinf.Source == f->Filename; });
+                if (it2 != it->second.end()) {
+                    th->Re = Request::Pause;
+                    th->St = Status::Paused;
+                    if (th->Handler)
+                        th->Handler->OnPaused(s, Reason::Breakpoint, "");
+                }
+            }
+        }
     }
 
     if (th->Re == Request::StepToLevel || th->Re == Request::BreakpointAtLevel) {

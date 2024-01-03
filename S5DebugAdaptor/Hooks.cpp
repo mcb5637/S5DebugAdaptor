@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Hooks.h"
 #include <stdexcept>
+#include "luapp/luapp50.h"
 
 LRESULT __stdcall debug_lua::Hooks::WinProcHook(HWND wnd, UINT msg, WPARAM w, LPARAM l)
 {
@@ -35,7 +36,42 @@ void __declspec(naked) winprocasm() {
 	}
 }
 
+int pcall_jumpback = 0;
+int __declspec(naked) __cdecl pcall_recovered(lua_State* L, int nargs, int nresults, int errfunc) {
+	__asm {
+		mov eax, [esp + 0x10];
+		sub esp, 8;
+		push pcall_jumpback;
+		ret;
+	};
+}
+int DoubleErrorFunc(lua::State L) {
+	return 0;
+}
+int __cdecl debug_lua::Hooks::PCallOverride(lua_State* l, int nargs, int nresults, int errfunc)
+{
+	lua::State L{ l };
+	int ehsi = 0;
+	std::string stackview{};
+	if (ErrorCallback) {
+		L.Push(ErrorCallback);
+		ehsi = L.ToAbsoluteIndex(-nargs - 2);
+		L.Insert(ehsi);
+		errfunc = ehsi;
+		for (int i = 1; i <= L.GetTop(); ++i) {
+			stackview += L.ToDebugString(i) + "\n";
+		}
+	}
+	int r = pcall_recovered(l, nargs, nresults, errfunc);
+	if (ErrorCallback) {
+		L.Remove(ehsi);
+	}
+	return r;
+}
+
+
 std::function<void()> debug_lua::Hooks::RunCallback{};
+int(*debug_lua::Hooks::ErrorCallback)(lua_State* L) = nullptr;
 bool Hooked = false;
 void debug_lua::Hooks::InstallHook()
 {
@@ -44,6 +80,15 @@ void debug_lua::Hooks::InstallHook()
 	Hooked = true;
 	SaveVirtualProtect vp{ reinterpret_cast<void*>(0x407451), 0x40745C - 0x407451 };
 	WriteJump(reinterpret_cast<void*>(0x407451), &winprocasm, reinterpret_cast<void*>(0x40745C));
+	
+	auto handle = GetModuleHandle("S5Lua5");
+	if (!handle)
+		return;
+	int pcall = reinterpret_cast<int>(GetProcAddress(handle, "lua_pcall"));
+	pcall_jumpback = pcall + 7;
+
+	SaveVirtualProtect vp2{ reinterpret_cast<void*>(pcall), static_cast<size_t>(pcall_jumpback - pcall) };
+	WriteJump(reinterpret_cast<void*>(pcall), &PCallOverride, reinterpret_cast<void*>(pcall_jumpback));
 }
 
 void debug_lua::Hooks::SendCheckRun()

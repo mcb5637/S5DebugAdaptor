@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <functional>
 using byte = uint8_t;
+struct lua_State;
 
 namespace debug_lua {
 	class Hooks
@@ -10,10 +11,12 @@ namespace debug_lua {
 		static constexpr UINT WM_CHECK_RUN = 0x7002;
 
 		static LRESULT __stdcall WinProcHook(HWND wnd, UINT msg, WPARAM w, LPARAM l);
+		static int __cdecl PCallOverride(lua_State* L, int nargs, int nresults, int errfunc);
 	public:
 		static void InstallHook();
 
 		static std::function<void()> RunCallback;
+		static int(*ErrorCallback)(lua_State* L);
 
 		static void SendCheckRun();
 

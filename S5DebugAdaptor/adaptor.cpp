@@ -8,6 +8,14 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 		dap::InitializeResponse response;
 		response.supportsConfigurationDoneRequest = true;
 		response.supportsSetVariable = true;
+		response.exceptionBreakpointFilters = dap::array<dap::ExceptionBreakpointsFilter>{};
+		{
+			dap::ExceptionBreakpointsFilter f{};
+			f.filter = "pcall";
+			f.label = "break on lua error";
+			f.def = true;
+			response.exceptionBreakpointFilters->push_back(f);
+		}
 		return response;
 		});
 
@@ -43,7 +51,9 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 					dap::StackFrame frame;
 					frame.name = L.Debug_GetNameForStackFunc(lvl);
 					if (i.What != nullptr && i.What == std::string_view{ "C" }) {
-						frame.name += " C code";
+						L.Debug_GetStack(lvl, i, lua::DebugInfoOptions::Line, true);
+						frame.name += std::format(" C {}", static_cast<void*>(L.ToCFunction(-1)));
+						L.Pop(1);
 					}
 					else if (i.Source != nullptr && i.Source == std::string_view{ "?" }) {
 						frame.name += " unknown lua";
@@ -348,8 +358,24 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 		}
 		});
 
-	Session->registerHandler([&](const dap::SetExceptionBreakpointsRequest&) {
-		return dap::SetExceptionBreakpointsResponse(); // TODO
+	Session->registerHandler([&](const dap::SetExceptionBreakpointsRequest& r)
+		-> dap::ResponseOrError<dap::SetExceptionBreakpointsResponse> {
+		bool on = false;
+		for (const auto& f : r.filters) {
+			if (f == "pcall")
+				on = true;
+		}
+		auto c = LuaExecutionPackagedTask<dap::SetExceptionBreakpointsResponse>{ [this, on]() {
+			Dbg.SetPCallEnabled(on);
+			return dap::SetExceptionBreakpointsResponse();
+			} };
+		Dbg.RunInSHoKThread(c);
+		try {
+			return c.Get();
+		}
+		catch (const std::invalid_argument&) {
+			return dap::Error("Unknown source");
+		}
 		});
 
 	Session->registerHandler([&](const dap::SourceRequest& request)

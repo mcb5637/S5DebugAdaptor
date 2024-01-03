@@ -89,6 +89,11 @@ void debug_lua::Debugger::RebuildBreakpoints()
     CheckHooked();
 }
 
+void debug_lua::Debugger::SetPCallEnabled(bool e)
+{
+    Hooks::ErrorCallback = e ? lua::State::CppToCFunction<ErrorFunc> : nullptr;
+}
+
 int debug_lua::Debugger::EvaluateInContext(std::string_view s, lua::State L, int lvl)
 {
     std::string pre = "";
@@ -168,13 +173,19 @@ void debug_lua::Debugger::CheckRun()
 {
     if (!HasTasks)
         return;
-    std::unique_lock l{ DataMutex };
-    while (!Tasks.empty()) {
-        LuaExecutionTask& t = *Tasks.front();
-        Tasks.pop_front();
-        t.Work();
+    while (true) {
+        LuaExecutionTask* t;
+        {
+            std::unique_lock l{ DataMutex };
+            if (Tasks.empty()) {
+                HasTasks = false;
+                return;
+            }
+            t = Tasks.front();
+            Tasks.pop_front();
+        }
+        t->Work();
     }
-    HasTasks = false;
 }
 
 void debug_lua::Debugger::CheckHooked()
@@ -226,18 +237,16 @@ void debug_lua::Debugger::InitializeLua(lua::State L)
     L.PushLightUserdata(&Debugger::Hook);
     L.PushLightUserdata(this);
     L.SetTableRaw(L.REGISTRYINDEX);
-    L.GetSubTable("LuaDebugger");
-    L.Push<Debugger, &Debugger::Log>(*this, 0);
-    L.SetTableRaw(-2, "Log");
-    L.Push<Debugger, &Debugger::SetLocal>(*this, 0);
-    L.SetTableRaw(-2, "SetLocal");
-    L.Push<Debugger, &Debugger::GetLocal>(*this, 0);
-    L.SetTableRaw(-2, "GetLocal");
-    L.Push<Debugger, &Debugger::SetUpvalue>(*this, 0);
-    L.SetTableRaw(-2, "SetUpvalue");
-    L.Push<Debugger, &Debugger::GetUpvalue>(*this, 0);
-    L.SetTableRaw(-2, "GetUpvalue");
-    L.Pop(1);
+
+    std::array<lua::FuncReference, 6> lib{ {
+        lua::FuncReference::GetRef<Debugger, &Debugger::Log>(*this, "Log"),
+        lua::FuncReference::GetRef<Debugger, &Debugger::IsDebuggerAttached>(*this, "IsDebuggerAttached"),
+        lua::FuncReference::GetRef<Debugger, &Debugger::SetLocal>(*this, "SetLocal"),
+        lua::FuncReference::GetRef<Debugger, &Debugger::GetLocal>(*this, "GetLocal"),
+        lua::FuncReference::GetRef<Debugger, &Debugger::SetUpvalue>(*this, "SetUpvalue"),
+        lua::FuncReference::GetRef<Debugger, &Debugger::GetUpvalue>(*this, "GetUpvalue"),
+        } };
+    L.RegisterGlobalLib(lib, "LuaDebugger");
 }
 
 void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
@@ -312,6 +321,28 @@ void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
     th->St = Status::Running;
 }
 
+int debug_lua::Debugger::ErrorFunc(lua::State L)
+{
+    L.PushLightUserdata(&Debugger::Hook);
+    L.GetTableRaw(L.REGISTRYINDEX);
+    auto th = static_cast<Debugger*>(L.ToUserdata(-1));
+    L.Pop(1);
+    auto& s = th->GetState(L.GetState());
+
+    if (!th->Handler)
+        return 1;
+
+    th->St = Status::Paused;
+    th->Re = Request::Pause;
+    
+    th->Handler->OnPaused(s, Reason::Exception, L.ToStringView(1));
+
+    th->WaitForRequest();
+    th->TranslateRequest(L);
+    th->St = Status::Running;
+    return 1;
+}
+
 int debug_lua::Debugger::Log(lua::State L)
 {
     if (Handler) {
@@ -369,4 +400,9 @@ int debug_lua::Debugger::SetUpvalue(lua::State L)
     L.PushValue(3);
     L.Debug_SetLocal(-2, L.CheckInt(2));
     return 0;
+}
+int debug_lua::Debugger::IsDebuggerAttached(lua::State L)
+{
+    L.Push(Handler != nullptr);
+    return 1;
 }

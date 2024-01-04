@@ -17,6 +17,20 @@ debug_lua::DebugState& debug_lua::Debugger::GetState(lua_State* l)
     }
     throw std::invalid_argument{ "state does not exist" };
 }
+debug_lua::DebugState& debug_lua::Debugger::GetState(int i)
+{
+    std::unique_lock lo{ StatesMutex };
+    return States.at(i);
+}
+int debug_lua::Debugger::GetStateIndex(const DebugState& s)
+{
+    std::unique_lock lo{ StatesMutex };
+    for (size_t i = 0; i < States.size(); ++i) {
+        if (&s == &States[i])
+            return static_cast<int>(i);
+    }
+    throw std::invalid_argument{ "state does not exist" };
+}
 
 void debug_lua::Debugger::OnStateAdded(lua_State* l, const char* name)
 {
@@ -99,6 +113,8 @@ int debug_lua::Debugger::EvaluateInContext(std::string_view s, lua::State L, int
     std::string pre = "";
     std::string post = "";
     std::string var = "r";
+    auto cb = Hooks::ErrorCallback;
+    Hooks::ErrorCallback = nullptr;
     if (lvl >= 0 && L.Debug_IsStackLevelValid(lvl)) {
         std::vector<std::string_view> varstaken{};
         int num = 1;
@@ -135,10 +151,14 @@ int debug_lua::Debugger::EvaluateInContext(std::string_view s, lua::State L, int
     std::string asstatement = std::format("{0}local {1} = function()\r\n{3}\r\nend\r\n{1} = {{{1}()}}\r\n{2}return unpack({1})", pre, var, post, s);
     std::string asexpresion = std::format("{0}local {1} = function()\r\nreturn {3}\r\nend\r\n{1} = {{{1}()}}\r\n{2}return unpack({1})", pre, var, post, s);
     try {
-        return L.DoStringT(asexpresion);
+        int r = L.DoStringT(asexpresion);
+        Hooks::ErrorCallback = cb;
+        return r;
     }
     catch (const lua::LuaException&) {}
-    return L.DoStringT(asstatement);
+    int r = L.DoStringT(asstatement);
+    Hooks::ErrorCallback = cb;
+    return r;
 }
 
 bool debug_lua::Debugger::IsIdentifier(std::string_view s)

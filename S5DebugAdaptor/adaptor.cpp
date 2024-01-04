@@ -67,8 +67,11 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 
 					frame.line = i.CurrentLine;
 					frame.column = 1;
-					frame.id = EncodeStackFrame(l, lvl);
-					auto [ds, dl] = DecodeStackFrame(frame.id);
+					auto fid = EncodeStackFrame(l, lvl, Scope::None, 0);
+					if (!fid.has_value())
+						break;
+					frame.id = *fid;
+					auto [_1, _2, _3, _4] = DecodeStackFrame(static_cast<int>(frame.id));
 
 					response.stackFrames.push_back(frame);
 					++lvl;
@@ -91,15 +94,22 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 	Session->registerHandler([&](const dap::ScopesRequest& request)
 		-> dap::ResponseOrError<dap::ScopesResponse> {
 			auto c = LuaExecutionPackagedTask<dap::ScopesResponse>{ [this, request]() {
-				auto sl = DecodeStackFrame(request.frameId);
-
-				dap::Scope scope;
-				scope.name = "Locals";
-				scope.presentationHint = "locals";
-				scope.variablesReference = request.frameId;
-
+				auto [s, lvl, sc, var] = DecodeStackFrame(static_cast<int>(request.frameId));
 				dap::ScopesResponse response;
-				response.scopes.push_back(scope);
+				{
+					dap::Scope scope;
+					scope.name = "Locals";
+					scope.presentationHint = "locals";
+					scope.variablesReference = *EncodeStackFrame(s, lvl, Scope::Local, 0);
+					response.scopes.push_back(scope);
+				}
+				{
+					dap::Scope scope;
+					scope.name = "Upvalues";
+					scope.presentationHint = "locals";
+					scope.variablesReference = *EncodeStackFrame(s, lvl, Scope::Upvalue, 0);
+					response.scopes.push_back(scope);
+				}
 				return response;
 				} };
 			Dbg.RunInSHoKThread(c);
@@ -117,7 +127,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 	Session->registerHandler([&](const dap::VariablesRequest& request)
 		-> dap::ResponseOrError<dap::VariablesResponse> {
 			auto c = LuaExecutionPackagedTask<dap::VariablesResponse>{ [this, request]() {
-				auto [s, lvl] = DecodeStackFrame(request.variablesReference);
+				auto [s, lvl, sc, var] = DecodeStackFrame(static_cast<int>(request.variablesReference));
 				lua::State L{ s.L };
 				lua::DebugInfo i{};
 				dap::VariablesResponse response;
@@ -135,31 +145,34 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 					return response;
 				}
 
-				int num = 1;
-				while (const char* n = L.Debug_GetLocal(lvl, num)) {
-					dap::Variable currentLineVar;
-					currentLineVar.name = n;
-					currentLineVar.type = L.TypeName(L.Type(-1));
-					currentLineVar.value = L.ToDebugString(-1);
-					L.Pop(1);
-					response.variables.push_back(currentLineVar);
+				if (sc == Scope::Local) {
+					int num = 1;
+					while (const char* n = L.Debug_GetLocal(lvl, num)) {
+						dap::Variable currentLineVar;
+						currentLineVar.name = n;
+						currentLineVar.type = L.TypeName(L.Type(-1));
+						currentLineVar.value = L.ToDebugString(-1);
+						L.Pop(1);
+						response.variables.push_back(currentLineVar);
 
-					++num;
+						++num;
+					}
+					L.SetTop(t);
 				}
-				L.SetTop(t+1);
+				else if (sc == Scope::Upvalue) {
+					int num = 1;
+					while (const char* n = L.Debug_GetUpvalue(func, num)) {
+						dap::Variable currentLineVar;
+						currentLineVar.name = n;
+						currentLineVar.type = L.TypeName(L.Type(-1));
+						currentLineVar.value = L.ToDebugString(-1);
+						L.Pop(1);
+						response.variables.push_back(currentLineVar);
 
-				num = 1;
-				while (const char* n = L.Debug_GetUpvalue(func, num)) {
-					dap::Variable currentLineVar;
-					currentLineVar.name = n;
-					currentLineVar.type = L.TypeName(L.Type(-1));
-					currentLineVar.value = L.ToDebugString(-1);
-					L.Pop(1);
-					response.variables.push_back(currentLineVar);
-
-					++num;
+						++num;
+					}
+					L.SetTop(t);
 				}
-				L.SetTop(t);
 
 				return response;
 				} };
@@ -178,7 +191,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 	Session->registerHandler([&](const dap::SetVariableRequest& request)
 		-> dap::ResponseOrError<dap::SetVariableResponse> {
 			auto c = LuaExecutionPackagedTask<dap::SetVariableResponse>{ [this, request]() {
-				auto [s, lvl] = DecodeStackFrame(request.variablesReference);
+				auto [s, lvl, sc, var] = DecodeStackFrame(static_cast<int>(request.variablesReference));
 				lua::State L{ s.L };
 				lua::DebugInfo i{};
 				dap::SetVariableResponse response;
@@ -195,35 +208,38 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 					throw std::invalid_argument{ "c func" };
 				}
 
-				int num = 1;
-				while (const char* n = L.Debug_GetLocal(lvl, num)) {
-					L.Pop(1);
-					if (n == request.name) {
-						Dbg.EvaluateInContext(request.value, L, lvl);
-						L.SetTop(t + 2);
-						response.value = L.ToDebugString(-1);
-						L.Debug_SetLocal(lvl, num);
-						L.SetTop(t);
-						return response;
+				if (sc == Scope::Local) {
+					int num = 1;
+					while (const char* n = L.Debug_GetLocal(lvl, num)) {
+						L.Pop(1);
+						if (n == request.name) {
+							Dbg.EvaluateInContext(request.value, L, lvl);
+							L.SetTop(t + 2);
+							response.value = L.ToDebugString(-1);
+							L.Debug_SetLocal(lvl, num);
+							L.SetTop(t);
+							return response;
+						}
+						++num;
 					}
-					++num;
+					L.SetTop(t);
 				}
-				L.SetTop(t + 1);
-
-				num = 1;
-				while (const char* n = L.Debug_GetUpvalue(func, num)) {
-					L.Pop(1);
-					if (n == request.name) {
-						Dbg.EvaluateInContext(request.value, L, lvl);
-						L.SetTop(t + 2);
-						response.value = L.ToDebugString(-1);
-						L.Debug_SetUpvalue(func, num);
-						L.SetTop(t);
-						return response;
+				else if (sc == Scope::Upvalue) {
+					int num = 1;
+					while (const char* n = L.Debug_GetUpvalue(func, num)) {
+						L.Pop(1);
+						if (n == request.name) {
+							Dbg.EvaluateInContext(request.value, L, lvl);
+							L.SetTop(t + 2);
+							response.value = L.ToDebugString(-1);
+							L.Debug_SetUpvalue(func, num);
+							L.SetTop(t);
+							return response;
+						}
+						++num;
 					}
-					++num;
+					L.SetTop(t);
 				}
-				L.SetTop(t);
 
 				throw std::invalid_argument{ "variable not found" };
 				} };
@@ -245,7 +261,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 				lua::State L;
 				int lvl;
 				if (request.frameId.has_value()) {
-					auto [s, lvl2] = DecodeStackFrame(*request.frameId);
+					auto [s, lvl2, _1, _2] = DecodeStackFrame(static_cast<int>(*request.frameId));
 					L = s.L;
 					lvl = lvl2;
 				}
@@ -445,15 +461,40 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 	Session->bind(socket);
 }
 
-int64_t debug_lua::Adaptor::EncodeStackFrame(const DebugState& s, int lvl)
-{
-	return static_cast<int64_t>(lvl) << 32 | static_cast<int64_t>(reinterpret_cast<int>(s.L));
+// encoded: lowest->highest bit: 2 state, 18 bits frame, 2 bits scope, 10 bits variable
+constexpr int bitmask(int n) {
+	return (1 << n) - 1;
 }
-std::pair<debug_lua::DebugState&, int> debug_lua::Adaptor::DecodeStackFrame(int64_t f)
+constexpr int state_bits = 2;
+constexpr int state_mask = bitmask(state_bits);
+constexpr int frame_bits = 18;
+constexpr int frame_mask = bitmask(frame_bits) << state_bits;
+constexpr int scope_bits = 2;
+constexpr int scope_mask = bitmask(scope_bits) << frame_bits << state_bits;
+constexpr int var_bits = 10;
+constexpr int var_mask = bitmask(var_bits) << scope_bits << frame_bits << state_bits;
+static_assert(state_bits + frame_bits + scope_bits + var_bits == 32);
+std::optional<int> debug_lua::Adaptor::EncodeStackFrame(const DebugState& s, int lvl, Scope sc, int var)
 {
-	int lvl = static_cast<int>(f >> 32);
-	lua_State* s = reinterpret_cast<lua_State*>(static_cast<int>(f));
-	return std::pair<debug_lua::DebugState&, int>{ Dbg.GetState(s), lvl };
+	int si = Dbg.GetStateIndex(s);
+	if ((si & state_mask) != si)
+		return std::nullopt;
+	lvl = lvl << state_bits;
+	if ((lvl & frame_mask) != lvl)
+		return std::nullopt;
+	int sco = static_cast<int>(sc) << state_bits << frame_bits;
+	var = var << state_bits << frame_bits << scope_bits;
+	if ((var & var_mask) != var)
+		return std::nullopt;
+	return si | lvl | sco | var;
+}
+std::tuple<debug_lua::DebugState&, int, debug_lua::Adaptor::Scope, int> debug_lua::Adaptor::DecodeStackFrame(int f)
+{
+	auto s = Dbg.GetState(f & state_mask);
+	int lvl = (f & frame_mask) >> state_bits;
+	Scope sc = static_cast<Scope>((f & scope_mask) >> state_bits >> frame_bits);
+	int v = (f & var_mask) >> scope_bits >> state_bits >> frame_bits;
+	return { s, lvl, sc, v };
 }
 
 void debug_lua::Adaptor::WaitUntilDisconnected()

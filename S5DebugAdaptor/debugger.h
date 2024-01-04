@@ -97,6 +97,8 @@ namespace debug_lua {
 			return States;
 		}
 		DebugState& GetState(lua_State* l);
+		int GetStateIndex(const DebugState& s);
+		DebugState& GetState(int i);
 		void OnStateAdded(lua_State* l, const char* name);
 		void OnStateClosed(lua_State* l);
 		void OnBreak(lua_State* l);

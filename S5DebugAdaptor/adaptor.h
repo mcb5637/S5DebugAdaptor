@@ -2,6 +2,8 @@
 
 #include <condition_variable>
 #include <mutex>
+#include <optional>
+#include <tuple>
 
 #include <dap/io.h>
 #include <dap/session.h>
@@ -17,11 +19,15 @@ namespace debug_lua {
 		std::condition_variable ConditionTerminate;
 		std::mutex MutexTerminate;
 
+		enum class Scope : int {
+			None, Local, Upvalue,
+		};
+
 	public:
 		Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter>& socket);
 
-		int64_t EncodeStackFrame(const DebugState& s, int lvl);
-		std::pair<DebugState&, int> DecodeStackFrame(int64_t f);
+		std::optional<int> EncodeStackFrame(const DebugState& s, int lvl, Scope sc, int var);
+		std::tuple<DebugState&, int, Scope, int> DecodeStackFrame(int f);
 		void WaitUntilDisconnected();
 
 		virtual void OnStateOpened(DebugState& s) override;

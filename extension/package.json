@@ -9,7 +9,7 @@
   "categories": [
     "Debuggers"
   ],
-  "activationEvents": ["onDebug", "*"],
+  "activationEvents": ["onDebug"],
   "main": "./dist/extension.js",
   "contributes": {
     "breakpoints": [{ "language": "lua" }],

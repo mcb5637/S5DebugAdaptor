@@ -146,32 +146,104 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 				}
 
 				if (sc == Scope::Local) {
-					int num = 1;
-					while (const char* n = L.Debug_GetLocal(lvl, num)) {
-						dap::Variable currentLineVar;
-						currentLineVar.name = n;
-						currentLineVar.type = L.TypeName(L.Type(-1));
-						currentLineVar.value = L.ToDebugString(-1);
-						L.Pop(1);
-						response.variables.push_back(currentLineVar);
+					if (var == 0) {
+						int num = 1;
+						int tablenum = 1;
+						while (const char* n = L.Debug_GetLocal(lvl, num)) {
+							dap::Variable currentLineVar;
+							currentLineVar.name = n;
+							currentLineVar.type = L.TypeName(L.Type(-1));
+							currentLineVar.value = L.ToDebugString(-1);
+							if (L.IsTable(-1)) {
+								auto ref = EncodeStackFrame(s, lvl, sc, tablenum);
+								if (ref.has_value())
+									currentLineVar.variablesReference = *ref;
+								++tablenum;
+							}
+							L.Pop(1);
+							response.variables.push_back(currentLineVar);
 
-						++num;
+							++num;
+						}
+						L.SetTop(t);
 					}
-					L.SetTop(t);
+					else {
+						int num = 1;
+						int tablenum = 1;
+						while (const char* n = L.Debug_GetLocal(lvl, num)) {
+							if (L.IsTable(-1)) {
+								if (tablenum == var) {
+									for (auto t : L.Pairs(-1)) {
+										dap::Variable currentLineVar;
+										currentLineVar.name = L.ToDebugString(-2);
+										currentLineVar.type = L.TypeName(L.Type(-1));
+										currentLineVar.value = L.ToDebugString(-1);
+
+										response.variables.push_back(currentLineVar);
+									}
+
+									L.Pop(1);
+									break;
+								}
+
+								++tablenum;
+							}
+							L.Pop(1);
+
+							++num;
+						}
+						L.SetTop(t);
+					}
 				}
 				else if (sc == Scope::Upvalue) {
-					int num = 1;
-					while (const char* n = L.Debug_GetUpvalue(func, num)) {
-						dap::Variable currentLineVar;
-						currentLineVar.name = n;
-						currentLineVar.type = L.TypeName(L.Type(-1));
-						currentLineVar.value = L.ToDebugString(-1);
-						L.Pop(1);
-						response.variables.push_back(currentLineVar);
+					if (var == 0) {
+						int num = 1;
+						int tablenum = 1;
+						while (const char* n = L.Debug_GetUpvalue(func, num)) {
+							dap::Variable currentLineVar;
+							currentLineVar.name = n;
+							currentLineVar.type = L.TypeName(L.Type(-1));
+							currentLineVar.value = L.ToDebugString(-1);
+							if (L.IsTable(-1)) {
+								auto ref = EncodeStackFrame(s, lvl, sc, tablenum);
+								if (ref.has_value())
+									currentLineVar.variablesReference = *ref;
+								++tablenum;
+							}
+							L.Pop(1);
+							response.variables.push_back(currentLineVar);
 
-						++num;
+							++num;
+						}
+						L.SetTop(t);
 					}
-					L.SetTop(t);
+					else {
+						int num = 1;
+						int tablenum = 1;
+						while (const char* n = L.Debug_GetUpvalue(func, num)) {
+							if (L.IsTable(-1)) {
+								if (tablenum == var) {
+									for (auto t : L.Pairs(-1)) {
+										dap::Variable currentLineVar;
+										currentLineVar.name = L.ToDebugString(-2);
+										currentLineVar.type = L.TypeName(L.Type(-1));
+										currentLineVar.value = L.ToDebugString(-1);
+
+										response.variables.push_back(currentLineVar);
+									}
+
+									L.Pop(1);
+									break;
+								}
+
+								++tablenum;
+							}
+							L.Pop(1);
+
+							++num;
+						}
+						L.SetTop(t);
+					}
 				}
 
 				return response;
@@ -490,7 +562,7 @@ std::optional<int> debug_lua::Adaptor::EncodeStackFrame(const DebugState& s, int
 }
 std::tuple<debug_lua::DebugState&, int, debug_lua::Adaptor::Scope, int> debug_lua::Adaptor::DecodeStackFrame(int f)
 {
-	auto s = Dbg.GetState(f & state_mask);
+	auto& s = Dbg.GetState(f & state_mask);
 	int lvl = (f & frame_mask) >> state_bits;
 	Scope sc = static_cast<Scope>((f & scope_mask) >> state_bits >> frame_bits);
 	int v = (f & var_mask) >> scope_bits >> state_bits >> frame_bits;

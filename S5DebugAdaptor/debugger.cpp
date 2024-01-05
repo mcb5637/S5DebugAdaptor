@@ -64,16 +64,30 @@ void debug_lua::Debugger::OnBreak(lua_State* l)
 {
     if (Handler == nullptr)
         return;
+    if (Evaluating)
+        return;
+    DebugState* s = nullptr;
     {
         std::unique_lock lo{ StatesMutex };
         auto i = std::find(States.begin(), States.end(), l);
         if (i == States.end())
-            throw std::invalid_argument{ "trying to close a state that does not exist" };
+            throw std::invalid_argument{ "trying to break a state that does not exist" };
+        s = &*i;
     }
-    LineFix = true;
-    Command(Request::StepOut);
+    /*Command(Request::StepOut);
     TranslateRequest(lua::State{ l });
-    Re = Request::BreakpointAtLevel;
+    Re = Request::BreakpointAtLevel;*/
+
+    St = Status::Paused;
+    Re = Request::Pause;
+
+    Handler->OnPaused(*s, Reason::Breakpoint, "");
+
+    LineFix = true;
+    CheckHooked();
+    WaitForRequest();
+    TranslateRequest(lua::State{l});
+    St = Status::Running;
 }
 
 void debug_lua::Debugger::RunInSHoKThread(LuaExecutionTask& t)
@@ -113,8 +127,7 @@ int debug_lua::Debugger::EvaluateInContext(std::string_view s, lua::State L, int
     std::string pre = "";
     std::string post = "";
     std::string var = "r";
-    auto cb = Hooks::ErrorCallback;
-    Hooks::ErrorCallback = nullptr;
+    VarOverrideReset over{ Evaluating, true };
     if (lvl >= 0 && L.Debug_IsStackLevelValid(lvl)) {
         std::vector<std::string_view> varstaken{};
         int num = 1;
@@ -151,14 +164,10 @@ int debug_lua::Debugger::EvaluateInContext(std::string_view s, lua::State L, int
     std::string asstatement = std::format("{0}local {1} = function()\r\n{3}\r\nend\r\n{1} = {{{1}()}}\r\n{2}return unpack({1})", pre, var, post, s);
     std::string asexpresion = std::format("{0}local {1} = function()\r\nreturn {3}\r\nend\r\n{1} = {{{1}()}}\r\n{2}return unpack({1})", pre, var, post, s);
     try {
-        int r = L.DoStringT(asexpresion);
-        Hooks::ErrorCallback = cb;
-        return r;
+        return L.DoStringT(asexpresion, "from console");
     }
     catch (const lua::LuaException&) {}
-    int r = L.DoStringT(asstatement);
-    Hooks::ErrorCallback = cb;
-    return r;
+    return L.DoStringT(asstatement, "from console");
 }
 
 bool debug_lua::Debugger::IsIdentifier(std::string_view s)
@@ -219,7 +228,7 @@ void debug_lua::Debugger::SetHooked(DebugState& s, bool h, bool imm)
 {
     lua::State L{ s.L };
     if (h) {
-        auto e = lua::HookEvent::Call | lua::HookEvent::Line | lua::HookEvent::Return;
+        auto e = lua::HookEvent::Line;
         if (imm)
             e = e | lua::HookEvent::Count;
         L.Debug_SetHook<Hook>(e, 1);
@@ -304,6 +313,9 @@ void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
         checkBreakpoint = true;
     }
 
+    if (th->Evaluating)
+        return;
+
     th->TranslateRequest(L);
     if (th->Re == Request::Pause && th->St == Status::Running) {
         th->St = Status::Paused;
@@ -328,7 +340,7 @@ void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
 
     if (th->Re == Request::StepToLevel || th->Re == Request::BreakpointAtLevel) {
         int lvl = L.Debug_GetStackDepth();
-        if (th->StepToLevel == lvl) {
+        if (th->StepToLevel >= lvl) {
             th->Re = Request::Pause;
             th->St = Status::Paused;
             if (th->Handler)
@@ -350,6 +362,8 @@ int debug_lua::Debugger::ErrorFunc(lua::State L)
     auto& s = th->GetState(L.GetState());
 
     if (!th->Handler)
+        return 1;
+    if (th->Evaluating)
         return 1;
 
     th->St = Status::Paused;

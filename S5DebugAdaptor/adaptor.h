@@ -16,6 +16,7 @@ namespace debug_lua {
 		std::unique_ptr<dap::Session> Session = dap::Session::create();
 		Debugger& Dbg;
 		bool TerminateDebugger = false;
+		bool IsAttached = false, UnderstandsType = false;
 		std::condition_variable ConditionTerminate;
 		std::mutex MutexTerminate;
 

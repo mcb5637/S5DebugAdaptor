@@ -46,21 +46,29 @@ int __declspec(naked) __cdecl pcall_recovered(lua_State* L, int nargs, int nresu
 	};
 }
 int DoubleErrorFunc(lua::State L) {
-	return 0;
+	L.PushValue(L.Upvalueindex(1));
+	L.PushValue(L.Upvalueindex(2));
+	L.PushValue(1);
+	L.PCall(1, 1);
+	L.PCall(1, 1);
+	return 1;
 }
 int __cdecl debug_lua::Hooks::PCallOverride(lua_State* l, int nargs, int nresults, int errfunc)
 {
 	lua::State L{ l };
 	int ehsi = 0;
-	std::string stackview{};
 	if (ErrorCallback) {
-		L.Push(ErrorCallback);
+		if (errfunc != 0) {
+			L.PushValue(errfunc);
+			L.Push(ErrorCallback);
+			L.Push<DoubleErrorFunc>(2);
+		}
+		else {
+			L.Push(ErrorCallback);
+		}
 		ehsi = L.ToAbsoluteIndex(-nargs - 2);
 		L.Insert(ehsi);
 		errfunc = ehsi;
-		for (int i = 1; i <= L.GetTop(); ++i) {
-			stackview += L.ToDebugString(i) + "\n";
-		}
 	}
 	int r = pcall_recovered(l, nargs, nresults, errfunc);
 	if (ErrorCallback) {

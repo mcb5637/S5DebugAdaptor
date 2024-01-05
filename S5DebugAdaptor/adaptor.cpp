@@ -4,7 +4,10 @@
 
 debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter>& socket) : Dbg(d)
 {
-	Session->registerHandler([](const dap::InitializeRequest&) {
+	Session->registerHandler([&](const dap::InitializeRequest& r) {
+		if (r.supportsVariableType.has_value())
+			UnderstandsType = *r.supportsVariableType;
+
 		dap::InitializeResponse response;
 		response.supportsConfigurationDoneRequest = true;
 		response.supportsSetVariable = true;
@@ -60,7 +63,6 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 					}
 					else {
 						dap::Source source;
-						source.name = i.ShortSrc;
 						source.path = i.Source;
 						frame.source = source;
 					}
@@ -71,7 +73,6 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 					if (!fid.has_value())
 						break;
 					frame.id = *fid;
-					auto [_1, _2, _3, _4] = DecodeStackFrame(static_cast<int>(frame.id));
 
 					response.stackFrames.push_back(frame);
 					++lvl;
@@ -512,7 +513,16 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 		});
 
 	Session->registerHandler(
-		[&](const dap::LaunchRequest&) { return dap::LaunchResponse(); });
+		[&](const dap::LaunchRequest&) {
+			IsAttached = false;
+			return dap::LaunchResponse();
+		});
+
+	Session->registerHandler(
+		[&](const dap::AttachRequest&) {
+			IsAttached = true;
+			return dap::AttachResponse();
+		});
 
 	Session->registerHandler([&](const dap::DisconnectRequest& request) {
 		{

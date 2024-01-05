@@ -54,6 +54,23 @@ namespace debug_lua {
 		}
 	};
 
+	template<class T>
+	class VarOverrideReset {
+		T& Var;
+		T Prev;
+	public:
+		constexpr VarOverrideReset(T& v, T o) : Var(v), Prev(v) {
+			Var = o;
+		}
+		constexpr ~VarOverrideReset() {
+			Var = Prev;
+		}
+		VarOverrideReset(const VarOverrideReset&) = delete;
+		VarOverrideReset(VarOverrideReset&&) = delete;
+		void operator=(const VarOverrideReset&) = delete;
+		void operator=(VarOverrideReset&&) = delete;
+	};
+
 	struct BreakpointFile {
 		std::string Filename;
 		std::vector<int> Lines;
@@ -80,7 +97,7 @@ namespace debug_lua {
 
 		std::mutex DataMutex;
 		std::list<LuaExecutionTask*> Tasks;
-		bool HasTasks = false, LineFix = false;
+		bool HasTasks = false, LineFix = false, Evaluating = false;
 		int LineFixLine = -1, LineFixLevel = 0;
 		std::map<int, std::vector<BreakpointFile*>> BreakpointLookup;
 

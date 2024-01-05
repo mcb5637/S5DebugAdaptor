@@ -80,6 +80,8 @@ extern "C" {
 	void __declspec(dllexport) __stdcall NewFile(lua_State* L, const char* filename, const char* filedata, size_t len) {
 		if (dbg.NewFile)
 			dbg.NewFile(L, filename, filedata, len);
+		if (filename)
+			debugger.OnSourceLoaded(L, filename);
 	}
 
 	void __declspec(dllexport) __stdcall Show() {

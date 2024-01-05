@@ -12,6 +12,7 @@ namespace debug_lua {
 	public:
 		lua_State* L;
 		const char* Name;
+		std::vector<std::string> SourcesLoaded;
 	};
 
 	enum class Reason : int {
@@ -26,6 +27,7 @@ namespace debug_lua {
 		virtual void OnStateClosing(DebugState& s, bool lastState) = 0;
 		virtual void OnPaused(DebugState& s, Reason r, std::string_view exceptionText) = 0;
 		virtual void OnLog(std::string_view s) = 0;
+		virtual void OnSourceAdded(DebugState& s, std::string_view f) = 0;
 	};
 
 	bool operator==(DebugState d, lua_State* l);
@@ -119,6 +121,7 @@ namespace debug_lua {
 		void OnStateAdded(lua_State* l, const char* name);
 		void OnStateClosed(lua_State* l);
 		void OnBreak(lua_State* l);
+		void OnSourceLoaded(lua_State* L, const char* filename);
 
 		// remember to Get the task
 		void RunInSHoKThread(LuaExecutionTask& t);

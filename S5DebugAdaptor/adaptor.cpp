@@ -11,6 +11,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 		dap::InitializeResponse response;
 		response.supportsConfigurationDoneRequest = true;
 		response.supportsSetVariable = true;
+		response.supportsLoadedSourcesRequest = true;
 		response.exceptionBreakpointFilters = dap::array<dap::ExceptionBreakpointsFilter>{};
 		{
 			dap::ExceptionBreakpointsFilter f{};
@@ -467,6 +468,21 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 		}
 		});
 
+	Session->registerHandler([&](const dap::LoadedSourcesRequest& r) {
+		dap::LoadedSourcesResponse res;
+
+		std::unique_lock lo{ Dbg.StatesMutex };
+		for (const auto& s : Dbg.GetStates()) {
+			for (const auto& src : s.SourcesLoaded) {
+				dap::Source sr;
+				sr.path = src;
+				res.sources.push_back(sr);
+			}
+		}
+
+		return res;
+		});
+
 	Session->registerHandler([&](const dap::SourceRequest& request)
 		-> dap::ResponseOrError<dap::SourceResponse> {
 			if (request.source->sourceReference.has_value() && *request.source->sourceReference != 0) {
@@ -637,5 +653,14 @@ void debug_lua::Adaptor::OnLog(std::string_view s)
 	dap::OutputEvent ev;
 	ev.category = "stdout";
 	ev.output = dap::string{ s };
+	Session->send(ev);
+}
+
+void debug_lua::Adaptor::OnSourceAdded(DebugState& s, std::string_view f)
+{
+	dap::LoadedSourceEvent ev;
+	ev.reason = "new";
+	ev.source = dap::Source{};
+	ev.source.path = dap::string{ f };
 	Session->send(ev);
 }

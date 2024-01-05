@@ -90,6 +90,17 @@ void debug_lua::Debugger::OnBreak(lua_State* l)
     St = Status::Running;
 }
 
+void debug_lua::Debugger::OnSourceLoaded(lua_State* L, const char* filename)
+{
+    std::unique_lock lo{ StatesMutex };
+    auto i = std::find(States.begin(), States.end(), L);
+    if (i == States.end())
+        throw std::invalid_argument{ "trying to break a state that does not exist" };
+    auto& f = i->SourcesLoaded.emplace_back(filename);
+    if (Handler)
+        Handler->OnSourceAdded(*i, f);
+}
+
 void debug_lua::Debugger::RunInSHoKThread(LuaExecutionTask& t)
 {
     std::unique_lock l{ DataMutex };

@@ -35,5 +35,6 @@ namespace debug_lua {
 		virtual void OnStateClosing(DebugState& s, bool lastState) override;
 		virtual void OnPaused(DebugState& s, Reason r, std::string_view exceptionText) override;
 		virtual void OnLog(std::string_view s) override;
+		virtual void OnSourceAdded(DebugState& s, std::string_view f) override;
 	};
 }

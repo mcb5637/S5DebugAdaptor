@@ -155,13 +155,13 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 							dap::Variable currentLineVar;
 							currentLineVar.name = n;
 							currentLineVar.type = L.TypeName(L.Type(-1));
-							currentLineVar.value = L.ToDebugString(-1);
 							if (L.IsTable(-1)) {
 								auto ref = EncodeStackFrame(s, lvl, sc, tablenum);
 								if (ref.has_value())
 									currentLineVar.variablesReference = *ref;
 								++tablenum;
 							}
+							currentLineVar.value = L.ToDebugString(-1, currentLineVar.variablesReference == 0 ? Dbg.MaxTableExpandLevels : 0);
 							L.Pop(1);
 							response.variables.push_back(currentLineVar);
 
@@ -179,7 +179,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 										dap::Variable currentLineVar;
 										currentLineVar.name = L.ToDebugString(-2);
 										currentLineVar.type = L.TypeName(L.Type(-1));
-										currentLineVar.value = L.ToDebugString(-1);
+										currentLineVar.value = L.ToDebugString(-1, Dbg.MaxTableExpandLevels);
 
 										response.variables.push_back(currentLineVar);
 									}
@@ -205,13 +205,13 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 							dap::Variable currentLineVar;
 							currentLineVar.name = n;
 							currentLineVar.type = L.TypeName(L.Type(-1));
-							currentLineVar.value = L.ToDebugString(-1);
 							if (L.IsTable(-1)) {
 								auto ref = EncodeStackFrame(s, lvl, sc, tablenum);
 								if (ref.has_value())
 									currentLineVar.variablesReference = *ref;
 								++tablenum;
 							}
+							currentLineVar.value = L.ToDebugString(-1, currentLineVar.variablesReference == 0 ? Dbg.MaxTableExpandLevels : 0);
 							L.Pop(1);
 							response.variables.push_back(currentLineVar);
 
@@ -229,7 +229,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 										dap::Variable currentLineVar;
 										currentLineVar.name = L.ToDebugString(-2);
 										currentLineVar.type = L.TypeName(L.Type(-1));
-										currentLineVar.value = L.ToDebugString(-1);
+										currentLineVar.value = L.ToDebugString(-1, Dbg.MaxTableExpandLevels);
 
 										response.variables.push_back(currentLineVar);
 									}
@@ -546,6 +546,16 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 			TerminateDebugger = true;
 			Dbg.Handler = nullptr;
 			Dbg.Command(Debugger::Request::Resume);
+			if (!IsAttached) {
+				auto c = LuaExecutionPackagedTask<void>{ [this, request]() {
+					std::lock_guard<std::mutex> lock(Dbg.StatesMutex);
+					auto& s = Dbg.GetStates();
+					if (!s.empty())
+						Dbg.EvaluateInContext("Framework.ExitGame()", s[0].L, -1);
+					} };
+				Dbg.RunInSHoKThread(c);
+				c.Get();
+			}
 		}
 		ConditionTerminate.notify_one();
 		return dap::DisconnectResponse();

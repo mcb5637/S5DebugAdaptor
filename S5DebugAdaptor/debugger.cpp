@@ -194,7 +194,7 @@ std::string debug_lua::Debugger::OutputString(lua::State L, int n)
         r = "nil";
     }
     else if (n == 1) {
-        r = L.ToDebugString(-1);
+        r = L.ToDebugString(-1, MaxTableExpandLevels);
     }
     else {
         int t = L.GetTop() - n;

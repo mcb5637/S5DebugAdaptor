@@ -9,35 +9,77 @@
   "categories": [
     "Debuggers"
   ],
-  "activationEvents": ["onDebug"],
+  "activationEvents": [
+    "onDebug"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
-    "breakpoints": [{ "language": "lua" }],
+    "breakpoints": [
+      {
+        "language": "lua"
+      }
+    ],
     "debuggers": [
       {
         "type": "s5lua",
         "label": "S5 Lua Debug",
-
         "configurationAttributes": {
           "launch": {
-            
-          }
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "absolute path to the SHoK executable"
+              },
+              "args": {
+                "type": "array",
+                "description": "command line parameters",
+                "default": [
+                  "-extra2"
+                ]
+              },
+              "attachDelay": {
+                "type": "number",
+                "description": "startup delay",
+                "default": 1
+              }
+            }
+          },
+          "attach": {}
         },
-
         "initialConfigurations": [
           {
             "type": "s5lua",
-            "request": "launch"
+            "request": "launch",
+            "program": "",
+            "args": [
+              "-extra2"
+            ],
+            "attachDelay": 1
           }
         ],
-
         "configurationSnippets": [
           {
             "label": "S5 Lua Debug: Launch",
+            "description": "A new configuration for launching S5",
+            "body": {
+              "type": "s5lua",
+              "request": "launch",
+              "program": "",
+              "args": [
+                "-extra2"
+              ],
+              "attachDelay": 1
+            }
+          },
+          {
+            "label": "S5 Lua Debug: Attach",
             "description": "A new configuration for attaching to S5",
             "body": {
               "type": "s5lua",
-              "request": "launch"
+              "request": "attach"
             }
           }
         ]

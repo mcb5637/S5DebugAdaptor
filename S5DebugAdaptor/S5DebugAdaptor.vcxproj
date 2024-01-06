@@ -175,6 +175,7 @@
     <ClInclude Include="lua50\lualib.h" />
     <ClInclude Include="luapp\constexprTypename.h" />
     <ClInclude Include="luapp\luapp50.h" />
+    <ClInclude Include="luapp\luapp50_d.h" />
     <ClInclude Include="luapp\luapp_common.h" />
     <ClInclude Include="luapp\luapp_decorator.h" />
     <ClInclude Include="luapp\luapp_userdata.h" />

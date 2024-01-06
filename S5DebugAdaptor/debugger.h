@@ -93,6 +93,7 @@ namespace debug_lua {
 			StepToLevel,
 			BreakpointAtLevel,
 		};
+		static constexpr int MaxTableExpandLevels = 10;
 
 	private:
 		std::vector<DebugState> States;

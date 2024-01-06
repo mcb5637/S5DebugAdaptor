@@ -63,6 +63,9 @@
     <ClInclude Include="shok.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="luapp\luapp50_d.h">
+      <Filter>lua</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">

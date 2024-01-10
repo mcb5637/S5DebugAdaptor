@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "adaptor.h"
 #include "shok.h"
+#include "utility.h"
 
 debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter>& socket) : Dbg(d)
 {
@@ -61,6 +62,11 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 					}
 					else if (i.Source != nullptr && i.Source == std::string_view{ "?" }) {
 						frame.name += " unknown lua";
+					}
+					else if (i.Source != nullptr && i.Source == Dbg.MapScript && !l.MapScriptFile.empty()) {
+						dap::Source source;
+						source.path = l.MapScriptFile;
+						frame.source = source;
 					}
 					else {
 						dap::Source source;
@@ -161,7 +167,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 									currentLineVar.variablesReference = *ref;
 								++tablenum;
 							}
-							currentLineVar.value = L.ToDebugString(-1, currentLineVar.variablesReference == 0 ? Dbg.MaxTableExpandLevels : 0);
+							currentLineVar.value = L.ToDebugString<Debugger::ToDebugString_Format>(-1, currentLineVar.variablesReference == 0 ? Dbg.MaxTableExpandLevels : 0);
 							L.Pop(1);
 							response.variables.push_back(currentLineVar);
 
@@ -177,9 +183,9 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 								if (tablenum == var) {
 									for (auto t : L.Pairs(-1)) {
 										dap::Variable currentLineVar;
-										currentLineVar.name = L.ToDebugString(-2);
+										currentLineVar.name = L.ToDebugString<Debugger::ToDebugString_Format>(-2);
 										currentLineVar.type = L.TypeName(L.Type(-1));
-										currentLineVar.value = L.ToDebugString(-1, Dbg.MaxTableExpandLevels);
+										currentLineVar.value = L.ToDebugString<Debugger::ToDebugString_Format>(-1, Dbg.MaxTableExpandLevels);
 
 										response.variables.push_back(currentLineVar);
 									}
@@ -211,7 +217,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 									currentLineVar.variablesReference = *ref;
 								++tablenum;
 							}
-							currentLineVar.value = L.ToDebugString(-1, currentLineVar.variablesReference == 0 ? Dbg.MaxTableExpandLevels : 0);
+							currentLineVar.value = L.ToDebugString<Debugger::ToDebugString_Format>(-1, currentLineVar.variablesReference == 0 ? Dbg.MaxTableExpandLevels : 0);
 							L.Pop(1);
 							response.variables.push_back(currentLineVar);
 
@@ -227,9 +233,9 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 								if (tablenum == var) {
 									for (auto t : L.Pairs(-1)) {
 										dap::Variable currentLineVar;
-										currentLineVar.name = L.ToDebugString(-2);
+										currentLineVar.name = L.ToDebugString<Debugger::ToDebugString_Format>(-2);
 										currentLineVar.type = L.TypeName(L.Type(-1));
-										currentLineVar.value = L.ToDebugString(-1, Dbg.MaxTableExpandLevels);
+										currentLineVar.value = L.ToDebugString<Debugger::ToDebugString_Format>(-1, Dbg.MaxTableExpandLevels);
 
 										response.variables.push_back(currentLineVar);
 									}
@@ -289,7 +295,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 						if (n == request.name) {
 							Dbg.EvaluateInContext(request.value, L, lvl);
 							L.SetTop(t + 2);
-							response.value = L.ToDebugString(-1);
+							response.value = L.ToDebugString<Debugger::ToDebugString_Format>(-1);
 							L.Debug_SetLocal(lvl, num);
 							L.SetTop(t);
 							return response;
@@ -305,7 +311,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 						if (n == request.name) {
 							Dbg.EvaluateInContext(request.value, L, lvl);
 							L.SetTop(t + 2);
-							response.value = L.ToDebugString(-1);
+							response.value = L.ToDebugString<Debugger::ToDebugString_Format>(-1);
 							L.Debug_SetUpvalue(func, num);
 							L.SetTop(t);
 							return response;
@@ -492,6 +498,13 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 
 			if (request.source.has_value() && request.source->path.has_value()) {
 				auto c = LuaExecutionPackagedTask<dap::SourceResponse>{ [this, request]() {
+					std::unique_lock lo{ Dbg.StatesMutex };
+					auto& stat = Dbg.GetStates();
+					std::string_view bbatoload{};
+					if (stat.size() > 1 && !stat[1].MapFile.empty()) {
+						bbatoload = stat[1].MapFile;
+					}
+					EnsureBbaLoaded load{ bbatoload };
 
 					BB::CFileStreamEx f{};
 					if (!f.OpenFile(request.source->path->c_str(), BB::IStream::Flags::DefaultRead))
@@ -503,6 +516,8 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 					s.resize(f.GetSize());
 					f.Read(s.data(), s.size());
 					f.Close();
+					if (s.ends_with('\0'))
+						s.resize(s.size() - 2);
 
 					response.content = s;
 					return response;

@@ -13,6 +13,8 @@ namespace debug_lua {
 		lua_State* L;
 		const char* Name;
 		std::vector<std::string> SourcesLoaded;
+		std::string MapFile;
+		std::string MapScriptFile;
 	};
 
 	enum class Reason : int {
@@ -94,6 +96,7 @@ namespace debug_lua {
 			BreakpointAtLevel,
 		};
 		static constexpr int MaxTableExpandLevels = 10;
+		static constexpr std::string_view MapScript = "Map Script";
 
 	private:
 		std::vector<DebugState> States;
@@ -132,6 +135,10 @@ namespace debug_lua {
 
 		int EvaluateInContext(std::string_view s, lua::State L, int lvl);
 		std::string OutputString(lua::State L, int n);
+
+		struct ToDebugString_Format : lua::State::ToDebugString_Format {
+			static std::string LuaFuncSourceFormat(lua::State L, int index, const lua::DebugInfo& d);
+		};
 
 	private:
 		bool IsIdentifier(std::string_view s);

@@ -2,6 +2,7 @@
 #include "debugger.h"
 #include <regex>
 #include "Hooks.h"
+#include "shok.h"
 
 bool debug_lua::operator==(DebugState d, lua_State* l)
 {
@@ -96,6 +97,22 @@ void debug_lua::Debugger::OnSourceLoaded(lua_State* L, const char* filename)
     auto i = std::find(States.begin(), States.end(), L);
     if (i == States.end())
         throw std::invalid_argument{ "trying to break a state that does not exist" };
+    if (filename == MapScript) {
+        Framework::CMain* ma = *Framework::CMain::GlobalObj;
+        auto* ci = ma->CampagnInfoHandler.GetCampagnInfo(&ma->CurrentMap);
+        auto* mapinf = ci->GetMapInfoByName(ma->CurrentMap.MapName.c_str());
+        if (mapinf->IsExternalmap) {
+            BB::CFileSystemMgr* mng = *BB::CFileSystemMgr::GlobalObj;
+            i->MapFile = mapinf->MapFilePath;
+            filename = "Maps\\ExternalMap\\MapScript.lua";
+            i->MapScriptFile = filename;
+        }
+        else {
+            i->MapScriptFile = mapinf->MapFilePath;
+            i->MapScriptFile.append("\\MapScript.lua");
+            filename = i->MapScriptFile.c_str();
+        }
+    }
     auto& f = i->SourcesLoaded.emplace_back(filename);
     if (Handler)
         Handler->OnSourceAdded(*i, f);
@@ -194,19 +211,34 @@ std::string debug_lua::Debugger::OutputString(lua::State L, int n)
         r = "nil";
     }
     else if (n == 1) {
-        r = L.ToDebugString(-1, MaxTableExpandLevels);
+        r = L.ToDebugString<ToDebugString_Format>(-1, MaxTableExpandLevels);
     }
     else {
         int t = L.GetTop() - n;
         r = "(";
         for (int i = t + 1; i <= t + n; ++i) {
-            r.append(L.ToDebugString(i));
+            r.append(L.ToDebugString<ToDebugString_Format>(i));
             if (i < t + n)
                 r.append(",\r\n");
         }
         r.append(")");
     }
     return r;
+}
+
+std::string debug_lua::Debugger::ToDebugString_Format::LuaFuncSourceFormat(lua::State L, int index, const lua::DebugInfo& d)
+{
+    std::string_view src = d.Source;
+    if (d.Source != nullptr && d.Source == MapScript) {
+        L.PushLightUserdata(&Debugger::Hook);
+        L.GetTableRaw(L.REGISTRYINDEX);
+        auto th = static_cast<Debugger*>(L.ToUserdata(-1));
+        L.Pop(1);
+        auto& s = th->GetState(L.GetState());
+        if (!s.MapScriptFile.empty())
+            src = s.MapScriptFile;
+    }
+    return std::format("{}:{}", src, d.LineDefined);
 }
 
 void debug_lua::Debugger::CheckRun()
@@ -338,6 +370,9 @@ void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
         if (it != th->BreakpointLookup.end()) {
             auto dinf = L.Debug_GetInfoFromAR(ar, lua::DebugInfoOptions::Source);
             if (dinf.Source != nullptr) {
+                if (!s.MapScriptFile.empty() && dinf.Source == MapScript) {
+                    dinf.Source = s.MapScriptFile.c_str();
+                }
                 auto it2 = std::find_if(it->second.begin(), it->second.end(), [dinf](BreakpointFile* f) {return dinf.Source == f->Filename; });
                 if (it2 != it->second.end()) {
                     th->Re = Request::Pause;

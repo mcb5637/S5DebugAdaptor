@@ -2,6 +2,7 @@
 #include <initializer_list>
 #include <cstdint>
 #include <functional>
+#include <string_view>
 using byte = uint8_t;
 struct lua_State;
 

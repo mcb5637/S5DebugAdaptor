@@ -448,8 +448,6 @@ namespace BB {
 		static inline BB::CFileSystemMgr** const GlobalObj = reinterpret_cast<BB::CFileSystemMgr**>(0x88F088);
 		static inline const char* (__cdecl* const PathGetExtension)(const char* path) = reinterpret_cast<const char* (__cdecl*)(const char*)>(0x40BAB3);
 
-		static BB::IFileSystem* LoadorderTop;
-
 		static const char* ReadFileToString(const char* name, size_t* size);
 		static bool DoesFileExist(const char* name);
 	};
@@ -468,4 +466,198 @@ namespace BB {
 		bool OpenFile(const char* filename, Flags mode);
 		void Close();
 	};
+
+	class CEvent;
+	class IPostEvent {
+	public:
+		virtual void __stdcall PostEvent(BB::CEvent* ev) = 0;
+	};
+}
+
+namespace ECore {
+	class IReplayStreamExtension {
+		virtual void unknown0();
+	};
+}
+
+namespace shok {
+	enum class MapType : int {
+		Campagn = -1,
+		Singleplayer = 0,
+		Development = 1,
+		Multiplayer = 2,
+		User = 3, // s5x and folder, sp and mp
+	};
+	struct String {
+	private:
+		int u1 = 0;
+		union {
+			char* alloc;
+			char inlin[4 * 4] = {};
+		} data;
+		size_t size_v = 0;
+		size_t allocated = 0;
+
+	public:
+		String(const char* s);
+		String(const String& c);
+		String(const std::string& s);
+		String(const std::string_view& s);
+		void assign(const char* s);
+		void assign(const char* s, size_t len);
+		const char* c_str() const;
+		size_t size() const;
+		~String();
+		String();
+		std::strong_ordering operator<=>(const String& r) const;
+		bool operator==(const String& r) const;
+		void operator=(const String& s);
+		void operator=(const std::string& s);
+		void operator=(const std::string_view& s);
+		void operator=(const char* s);
+		operator std::string_view() const;
+	};
+	static_assert(sizeof(String) == 7 * 4);
+	std::strong_ordering operator<=>(const String& a, const char* b);
+	bool operator==(const String& a, const char* b);
+	std::strong_ordering operator<=>(const char* a, const String& b);
+	bool operator==(const char* a, const String& b);
+}
+
+namespace GS3DTools {
+	class CMapData : public ECore::IReplayStreamExtension {
+	public:
+		shok::String MapName;
+		shok::MapType MapType;
+		shok::String MapCampagnName;
+		shok::String MapGUID; // theoretically a struct with only a string as member Data
+
+		CMapData& operator=(const CMapData& o);
+
+		static inline constexpr int vtp = 0x761D34;
+	};
+}
+
+namespace Framework {
+	struct SKeys {
+		shok::Vector<int> Keys;
+
+		bool Check(const SKeys& map) const;
+		bool CheckSP(const SKeys& map) const;
+		// set to extra num 51BA6A __thiscall
+	};
+
+	struct MapInfo {
+		shok::String NameKey, DescKey, Name, Desc;
+		int SizeX = 0, SizeY = 0;
+		bool MPFlag = false; // 30
+		int MPPlayerCount = 0;
+		int MPGameOptionFlagSet = 0;
+		shok::String MiniMapTextureName;
+		bool IsExternalmap = false; // ? 40
+		SKeys Keys; // check goes for every map key has to be in shok keys
+		struct {
+			shok::String Data;
+		} GUID;
+		shok::String MapFileName, MapFilePath;
+	};
+	static_assert(sizeof(Framework::MapInfo) == 66 * 4);
+	//constexpr int i = offsetof(MapInfo, unknown) / 4;
+
+	struct CampagnInfo {
+		shok::Vector<Framework::MapInfo> Maps;
+		shok::String CampagnName;
+
+		int GetMapIndexByName(const char* s);
+		Framework::MapInfo* GetMapInfoByName(const char* n);
+	};
+	static_assert(sizeof(CampagnInfo) == 11 * 4);
+	struct ActualCampagnInfo { // CampaignInfo.xml in the campagn folder
+		struct MapInfo {
+			int ID;
+			int NextMapID;
+			shok::String Name;
+		};
+
+		int Desc;
+		shok::Vector<MapInfo> Maps; // as far as i know unused
+		shok::String Name;
+		CampagnInfo Info; // not serialized
+	};
+	static_assert(sizeof(ActualCampagnInfo) == 23 * 4);
+
+	struct SaveData {
+		friend struct SavegameSystem;
+		shok::String SavePath;
+		GS3DTools::CMapData MapData;
+		shok::String AdditionalInfo; // savegame name
+		shok::Vector<int> Key; // seems to be unused
+	};
+	static_assert(sizeof(SaveData) == 41 * 4);
+
+	struct SavegameSystem {
+		SaveData* CurrentSave;
+		char* SaveDir;
+		char* DebugSaveDir;
+
+		bool LoadSaveData(const char* name); // fills CurrentSave
+		void SaveGame(const char* slot, GS3DTools::CMapData* mapdata, const char* name, bool debugSave = false);
+
+		static inline Framework::SavegameSystem* (* const GlobalObj)() = reinterpret_cast<Framework::SavegameSystem * (* const)()>(0x403158);
+	};
+}
+
+namespace Framework {
+	class CMain : public BB::IPostEvent {
+	public:
+		enum class Mode : int {
+			MainMenu = 1,
+			Singleplayer = 2,
+			Multiplayer = 3,
+		};
+		enum class NextMode : int {
+			NoChange = 0,
+			StartMapSP = 1,
+			ToMainMenu = 2,
+			LoadSaveSP = 3,
+			StartMapMP = 4,
+			RestartMapSP = 5,
+			LeaveGame = 6,
+		};
+
+		int p0[2];
+		Mode CurrentMode; // 1 mainmenu, 2 ingame (sp?)
+		GS3DTools::CMapData CurrentMap; // 4
+		int p1[49];
+		shok::String ReplayToLoad; // 76 from commandline, not sure if it does anything
+		shok::String GUIReplay; // 83 from commandline, not sure it does anything
+		shok::String SavegameToLoad; // 90
+		shok::String SaveAfterXSeconds; // 97 from commandline, not sure it does anything
+		int p2[36];
+		bool DebugScript;
+		int p3[30];
+		NextMode ToDo; // 171
+		int p4[2];
+		struct CIH {
+			shok::Vector<ActualCampagnInfo> Campagns; // access with -1 + name
+			CampagnInfo Infos[4];
+			SKeys Keys;
+
+			Framework::CampagnInfo* GetCampagnInfo(shok::MapType i, const char* n);
+			Framework::CampagnInfo* GetCampagnInfo(GS3DTools::CMapData* d);
+
+		} CampagnInfoHandler;
+		
+
+		static inline constexpr int vtp = 0x76293C;
+
+		static inline Framework::CMain** const GlobalObj = reinterpret_cast<Framework::CMain**>(0x84EF60);
+		static inline const int* const ExtraNum = reinterpret_cast<int*>(0x886BA8);
+	};
+	static_assert(offsetof(Framework::CMain, CurrentMode) == 3 * 4);
+	static_assert(offsetof(Framework::CMain, DebugScript) == 140 * 4);
+	static_assert(offsetof(Framework::CMain, ToDo) == 171 * 4);
+	static_assert(offsetof(Framework::CMain, SavegameToLoad) == 90 * 4);
+	static_assert(offsetof(Framework::CMain, CampagnInfoHandler) == 174 * 4);
+	//constexpr int i = offsetof(Framework::CMain, ToDo) / 4;
 }

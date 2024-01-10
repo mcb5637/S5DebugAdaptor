@@ -174,8 +174,6 @@ void BB::CFileStreamEx::Close()
 	shok_BB_CFileStreamEx_Close(this);
 }
 
-BB::IFileSystem* BB::CFileSystemMgr::LoadorderTop = nullptr;
-
 const char* BB::CFileSystemMgr::ReadFileToString(const char* name, size_t* size)
 {
 	char* buff = nullptr;
@@ -208,4 +206,170 @@ bool BB::CFileSystemMgr::DoesFileExist(const char* name)
 	FileInfo i{};
 	(*GlobalObj)->GetFileInfo(&i, name, 0);
 	return i.Found && !i.IsDirectory;
+}
+static inline void(__thiscall* const str_ctor)(shok::String* th, const char* s) = reinterpret_cast<void(__thiscall*)(shok::String*, const char*)>(0x4018C6);
+shok::String::String(const char* s)
+{
+	str_ctor(this, s);
+}
+static inline void(__thiscall* const str_ctorcopy)(shok::String* th, const shok::String* ot) = reinterpret_cast<void(__thiscall*)(shok::String*, const shok::String*)>(0x401808);
+shok::String::String(const shok::String& c)
+{
+	str_ctorcopy(this, &c);
+}
+shok::String::String(const std::string& s)
+{
+	*this = s;
+}
+shok::String::String(const std::string_view& s)
+{
+	*this = s;
+}
+const char* shok::String::c_str() const
+{
+	if (allocated < 16)
+		return data.inlin;
+	else
+		return data.alloc;
+}
+size_t shok::String::size() const
+{
+	return size_v;
+}
+shok::String::~String()
+{
+	if (allocated >= 16)
+		shok::Free(data.alloc);
+}
+static inline void(__thiscall* const str_assign)(shok::String* th, const char* c) = reinterpret_cast<void(__thiscall*)(shok::String*, const char*)>(0x40182E);
+void shok::String::assign(const char* s)
+{
+	str_assign(this, s);
+}
+inline void(__thiscall* const str_assign_l)(shok::String* th, const char* c, size_t l) = reinterpret_cast<void(__thiscall*)(shok::String*, const char*, size_t)>(0x401799);
+void shok::String::assign(const char* s, size_t len)
+{
+	str_assign_l(this, s, len);
+}
+shok::String::String() : shok::String("")
+{
+}
+
+std::strong_ordering shok::String::operator<=>(const String& r) const
+{
+	return std::string_view{ this->c_str(), this->size() } <=> std::string_view{ r.c_str(), r.size() };
+}
+bool shok::String::operator==(const String& r) const
+{
+	return (*this <=> r) == std::strong_ordering::equal;
+}
+void shok::String::operator=(const String& s)
+{
+	assign(s.c_str(), s.size());
+}
+void shok::String::operator=(const std::string& s)
+{
+	assign(s.c_str(), s.size());
+}
+void shok::String::operator=(const std::string_view& s)
+{
+	assign(s.data(), s.size());
+}
+void shok::String::operator=(const char* s)
+{
+	assign(s);
+}
+shok::String::operator std::string_view() const
+{
+	return { c_str(), size() };
+}
+
+std::strong_ordering shok::operator<=>(const String& a, const char* b)
+{
+	return std::string_view{ a.c_str(), a.size() } <=> std::string_view{ b };
+}
+bool shok::operator==(const String& a, const char* b)
+{
+	return (a <=> b) == std::strong_ordering::equal;
+}
+std::strong_ordering shok::operator<=>(const char* a, const String& b)
+{
+	return std::string_view{ a } <=> std::string_view{ b.c_str(), b.size() };
+}
+bool shok::operator==(const char* a, const String& b)
+{
+	return (a <=> b) == std::strong_ordering::equal;
+}
+
+void ECore::IReplayStreamExtension::unknown0()
+{
+}
+
+inline bool(__thiscall* skeys_checknorm)(const Framework::SKeys* th, const Framework::SKeys* map) = reinterpret_cast<bool(__thiscall*)(const Framework::SKeys*, const Framework::SKeys*)>(0x51B9F7);
+bool Framework::SKeys::Check(const SKeys& map) const
+{
+    return skeys_checknorm(this, &map);
+}
+inline bool(__thiscall* skeys_checksp)(const Framework::SKeys* th, const Framework::SKeys* map) = reinterpret_cast<bool(__thiscall*)(const Framework::SKeys*, const Framework::SKeys*)>(0x51BA3C);
+bool Framework::SKeys::CheckSP(const SKeys& map) const
+{
+    return skeys_checksp(this, &map);
+}
+
+inline GS3DTools::CMapData* (__thiscall* const mapdata_assign)(GS3DTools::CMapData* th, const GS3DTools::CMapData* o) = reinterpret_cast<GS3DTools::CMapData * (__thiscall*)(GS3DTools::CMapData*, const GS3DTools::CMapData*)>(0x4029B8);
+GS3DTools::CMapData& GS3DTools::CMapData::operator=(const GS3DTools::CMapData& o)
+{
+    if (this == &o)
+        return *this;
+    return *mapdata_assign(this, &o);
+}
+
+int(__thiscall* const cinfo_getindex)(Framework::CampagnInfo* th, const char* s) = reinterpret_cast<int(__thiscall* const)(Framework::CampagnInfo*, const char*)>(0x51A23B);
+int Framework::CampagnInfo::GetMapIndexByName(const char* s)
+{
+    return cinfo_getindex(this, s);
+}
+
+Framework::MapInfo* Framework::CampagnInfo::GetMapInfoByName(const char* n)
+{
+    int i = GetMapIndexByName(n);
+    if (i < 0)
+        return nullptr;
+    return &Maps[i];
+}
+
+inline bool(__thiscall* const savedata_load)(Framework::SavegameSystem* th, const char* s) = reinterpret_cast<bool(__thiscall* const)(Framework::SavegameSystem*, const char*)>(0x403253);
+bool Framework::SavegameSystem::LoadSaveData(const char* name)
+{
+    return savedata_load(this, name);
+}
+
+inline void(__thiscall* const savesys_save)(Framework::SavegameSystem* th, const char* slot, GS3DTools::CMapData* mapdata, const char* name, bool debugSave) = reinterpret_cast<void(__thiscall*)(Framework::SavegameSystem*, const char*, GS3DTools::CMapData*, const char*, bool)>(0x4031C4);
+void Framework::SavegameSystem::SaveGame(const char* slot, GS3DTools::CMapData* mapdata, const char* name, bool debugSave)
+{
+    savesys_save(this, slot, mapdata, name, debugSave);
+}
+
+Framework::CampagnInfo* Framework::CMain::CIH::GetCampagnInfo(shok::MapType i, const char* n)
+{
+    int i2 = static_cast<int>(i);
+    if (i2 < -1 || i2 >= 4)
+        return nullptr;
+    Framework::CampagnInfo* r = nullptr;
+    auto* th = this;
+    __asm {
+        push n;
+        mov ecx, th;
+        mov eax, i2;
+        mov edx, 0x40BB16; // this thing has first param in eax, no known calling convention, so i have to improvise
+        call edx;
+        pop edx;
+        mov r, eax;
+    }
+    return r;
+}
+Framework::CampagnInfo* (__thiscall* const framew_getcinfo)(void* th, const GS3DTools::CMapData* s) = reinterpret_cast<Framework::CampagnInfo * (__thiscall* const)(void*, const GS3DTools::CMapData*)>(0x5190D5);
+Framework::CampagnInfo* Framework::CMain::CIH::GetCampagnInfo(GS3DTools::CMapData* d)
+{
+    return framew_getcinfo(this, d);
 }

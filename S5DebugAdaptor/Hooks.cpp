@@ -2,6 +2,7 @@
 #include "Hooks.h"
 #include <stdexcept>
 #include "luapp/luapp50.h"
+#include "shok.h"
 
 LRESULT __stdcall debug_lua::Hooks::WinProcHook(HWND wnd, UINT msg, WPARAM w, LPARAM l)
 {
@@ -178,4 +179,3 @@ void debug_lua::Hooks::WriteNops(void* adr, void* nextvalid)
 	for (byte* a = static_cast<byte*>(adr); a < static_cast<byte*>(nextvalid); ++a)
 		*a = 0x90;
 }
-

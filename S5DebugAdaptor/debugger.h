@@ -116,7 +116,7 @@ namespace debug_lua {
 
 		std::mutex StatesMutex;
 
-		inline const std::vector<DebugState> GetStates() const {
+		inline const std::vector<DebugState>& GetStates() const {
 			return States;
 		}
 		DebugState& GetState(lua_State* l);

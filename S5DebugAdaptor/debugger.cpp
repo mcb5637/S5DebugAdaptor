@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "debugger.h"
 #include <regex>
+#include <thread>
 #include "Hooks.h"
 #include "shok.h"
 
@@ -283,9 +284,12 @@ void debug_lua::Debugger::SetHooked(DebugState& s, bool h, bool imm)
 
 void debug_lua::Debugger::WaitForRequest()
 {
-    do {
+    CheckRun();
+    while (Re == Request::Pause)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{ 10 });
         CheckRun();
-    } while (Re == Request::Pause);
+    }
 }
 void debug_lua::Debugger::TranslateRequest(lua::State L)
 {

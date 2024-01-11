@@ -644,6 +644,25 @@ void debug_lua::Adaptor::OnStateClosing(DebugState& s, bool lastState)
 		dap::TerminatedEvent ev;
 		Session->send(ev);
 	}
+	else {
+		for (const auto& src : s.SourcesLoaded) {
+			bool found = false;
+			for (const auto& st : Dbg.GetStates()) {
+				if (&st == &s)
+					continue;
+				if (std::find(st.SourcesLoaded.begin(), st.SourcesLoaded.end(), src) != st.SourcesLoaded.end()) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				dap::LoadedSourceEvent le;
+				le.reason = "removed";
+				le.source.path = src;
+				Session->send(le);
+			}
+		}
+	}
 }
 
 void debug_lua::Adaptor::OnPaused(DebugState& s, Reason r, std::string_view exceptionText)
@@ -685,7 +704,6 @@ void debug_lua::Adaptor::OnSourceAdded(DebugState& s, std::string_view f)
 {
 	dap::LoadedSourceEvent ev;
 	ev.reason = "new";
-	ev.source = dap::Source{};
 	ev.source.path = dap::string{ f };
 	Session->send(ev);
 }

@@ -13,11 +13,13 @@ namespace debug_lua {
 
 		static LRESULT __stdcall WinProcHook(HWND wnd, UINT msg, WPARAM w, LPARAM l);
 		static int __cdecl PCallOverride(lua_State* L, int nargs, int nresults, int errfunc);
+		static int __cdecl LoadOverride(lua_State* L, void* reader, void* data, const char* chunkname);
 	public:
 		static void InstallHook();
 
 		static std::function<void()> RunCallback;
 		static int(*ErrorCallback)(lua_State* L);
+		static void (*SyntaxCallback)(lua_State* L, int err);
 
 		static void SendCheckRun();
 

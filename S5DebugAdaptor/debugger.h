@@ -104,6 +104,9 @@ namespace debug_lua {
 		std::mutex DataMutex;
 		std::list<LuaExecutionTask*> Tasks;
 		bool HasTasks = false, LineFix = false, Evaluating = false;
+	public:
+		bool IgnoreBreak = false;
+	private:
 		int LineFixLine = -1, LineFixLevel = 0;
 		std::map<int, std::vector<BreakpointFile*>> BreakpointLookup;
 
@@ -132,6 +135,7 @@ namespace debug_lua {
 		void Command(Request r);
 		void RebuildBreakpoints();
 		void SetPCallEnabled(bool e);
+		void SetSyntaxEnabled(bool e);
 
 		int EvaluateInContext(std::string_view s, lua::State L, int lvl);
 		std::string OutputString(lua::State L, int n);
@@ -151,6 +155,7 @@ namespace debug_lua {
 
 		static void Hook(lua::State L, lua::ActivationRecord ar);
 		static int ErrorFunc(lua::State L);
+		static void SyntaxErrorFunc(lua_State* L, int err);
 
 		int Log(lua::State L);
 		int GetLocal(lua::State L);

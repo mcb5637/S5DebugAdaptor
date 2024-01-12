@@ -78,9 +78,27 @@ int __cdecl debug_lua::Hooks::PCallOverride(lua_State* l, int nargs, int nresult
 	return r;
 }
 
+int load_jumpback = 0;
+int __declspec(naked) __cdecl load_recovered(lua_State* L, void* reader, void* data, const char* chunkname) {
+	__asm {
+		mov eax, [esp + 0x10];
+		sub esp, 0x14;
+		push load_jumpback;
+		ret;
+	};
+}
+int __cdecl debug_lua::Hooks::LoadOverride(lua_State* L, void* reader, void* data, const char* chunkname)
+{
+	int r = load_recovered(L, reader, data, chunkname);
+	if (r != static_cast<int>(lua::ErrorCode::Success) && SyntaxCallback)
+		SyntaxCallback(L, r);
+	return r;
+}
+
 
 std::function<void()> debug_lua::Hooks::RunCallback{};
 int(*debug_lua::Hooks::ErrorCallback)(lua_State* L) = nullptr;
+void(*debug_lua::Hooks::SyntaxCallback)(lua_State* L, int err) = nullptr;
 bool Hooked = false;
 void debug_lua::Hooks::InstallHook()
 {
@@ -98,6 +116,12 @@ void debug_lua::Hooks::InstallHook()
 
 	SaveVirtualProtect vp2{ reinterpret_cast<void*>(pcall), static_cast<size_t>(pcall_jumpback - pcall) };
 	WriteJump(reinterpret_cast<void*>(pcall), &PCallOverride, reinterpret_cast<void*>(pcall_jumpback));
+
+	int load = reinterpret_cast<int>(GetProcAddress(handle, "lua_load"));
+	load_jumpback = load + 7;
+
+	SaveVirtualProtect vp3{ reinterpret_cast<void*>(load), static_cast<size_t>(load_jumpback - load) };
+	WriteJump(reinterpret_cast<void*>(load), &LoadOverride, reinterpret_cast<void*>(load_jumpback));
 }
 
 void debug_lua::Hooks::SendCheckRun()

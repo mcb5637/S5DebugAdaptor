@@ -66,6 +66,8 @@ void debug_lua::Debugger::OnBreak(lua_State* l)
 {
     if (Handler == nullptr)
         return;
+    if (IgnoreBreak)
+        return;
     if (Evaluating)
         return;
     DebugState* s = nullptr;
@@ -149,6 +151,10 @@ void debug_lua::Debugger::RebuildBreakpoints()
 void debug_lua::Debugger::SetPCallEnabled(bool e)
 {
     Hooks::ErrorCallback = e ? lua::State::CppToCFunction<ErrorFunc> : nullptr;
+}
+void debug_lua::Debugger::SetSyntaxEnabled(bool e)
+{
+    Hooks::SyntaxCallback = e ? SyntaxErrorFunc : nullptr;
 }
 
 int debug_lua::Debugger::EvaluateInContext(std::string_view s, lua::State L, int lvl)
@@ -409,12 +415,13 @@ int debug_lua::Debugger::ErrorFunc(lua::State L)
     L.GetTableRaw(L.REGISTRYINDEX);
     auto th = static_cast<Debugger*>(L.ToUserdata(-1));
     L.Pop(1);
-    auto& s = th->GetState(L.GetState());
 
     if (!th->Handler)
         return 1;
     if (th->Evaluating)
         return 1;
+
+    auto& s = th->GetState(L.GetState());
 
     th->St = Status::Paused;
     th->Re = Request::Pause;
@@ -425,6 +432,33 @@ int debug_lua::Debugger::ErrorFunc(lua::State L)
     th->TranslateRequest(L);
     th->St = Status::Running;
     return 1;
+}
+
+void debug_lua::Debugger::SyntaxErrorFunc(lua_State* l, int err)
+{
+    lua::State L{ l };
+    L.PushLightUserdata(&Debugger::Hook);
+    L.GetTableRaw(L.REGISTRYINDEX);
+    auto th = static_cast<Debugger*>(L.ToUserdata(-1));
+    L.Pop(1);
+
+    if (!th->Handler)
+        return;
+    if (th->Evaluating)
+        return;
+
+    auto& s = th->GetState(L.GetState());
+
+    th->St = Status::Paused;
+    th->Re = Request::Pause;
+
+    auto msg = std::format("{}: {}", L.ErrorCodeFormat(static_cast<lua::ErrorCode>(err)), L.ToStringView(-1));
+    th->Handler->OnPaused(s, Reason::Exception, msg);
+
+    th->WaitForRequest();
+    th->TranslateRequest(L);
+    th->St = Status::Running;
+    return;
 }
 
 int debug_lua::Debugger::Log(lua::State L)

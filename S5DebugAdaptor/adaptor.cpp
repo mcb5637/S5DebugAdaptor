@@ -17,7 +17,21 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 		{
 			dap::ExceptionBreakpointsFilter f{};
 			f.filter = "pcall";
-			f.label = "break on lua error";
+			f.label = "lua error";
+			f.def = true;
+			response.exceptionBreakpointFilters->push_back(f);
+		}
+		{
+			dap::ExceptionBreakpointsFilter f{};
+			f.filter = "break";
+			f.label = "LuaDebugger.Break()";
+			f.def = true;
+			response.exceptionBreakpointFilters->push_back(f);
+		}
+		{
+			dap::ExceptionBreakpointsFilter f{};
+			f.filter = "load";
+			f.label = "syntax error";
 			f.def = true;
 			response.exceptionBreakpointFilters->push_back(f);
 		}
@@ -456,13 +470,19 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 
 	Session->registerHandler([&](const dap::SetExceptionBreakpointsRequest& r)
 		-> dap::ResponseOrError<dap::SetExceptionBreakpointsResponse> {
-		bool on = false;
+		bool pcall = false, ibr = true, synt = false;
 		for (const auto& f : r.filters) {
 			if (f == "pcall")
-				on = true;
+				pcall = true;
+			if (f == "break")
+				ibr = false;
+			if (f == "load")
+				synt = true;
 		}
-		auto c = LuaExecutionPackagedTask<dap::SetExceptionBreakpointsResponse>{ [this, on]() {
-			Dbg.SetPCallEnabled(on);
+		auto c = LuaExecutionPackagedTask<dap::SetExceptionBreakpointsResponse>{ [&]() {
+			Dbg.SetPCallEnabled(pcall);
+			Dbg.IgnoreBreak = ibr;
+			Dbg.SetSyntaxEnabled(synt);
 			return dap::SetExceptionBreakpointsResponse();
 			} };
 		Dbg.RunInSHoKThread(c);

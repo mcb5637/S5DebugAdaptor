@@ -169,6 +169,7 @@
   <ItemGroup>
     <ClInclude Include="adaptor.h" />
     <ClInclude Include="debugger.h" />
+    <ClInclude Include="enumflags.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Hooks.h" />
     <ClInclude Include="lua50\lauxlib.h" />

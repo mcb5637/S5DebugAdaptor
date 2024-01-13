@@ -43,8 +43,23 @@ void debug_lua::Debugger::OnStateAdded(lua_State* l, const char* name)
         Hooks::RunCallback = std::bind(&Debugger::CheckRun, this);
         if (name == nullptr)
             name = States.empty() ? "Main Menu" : "Ingame";
+        bool isingame = !States.empty();
         s = &States.emplace_back(l, name);
         InitializeLua(lua::State{ s->L });
+        if (isingame) {
+            Framework::CMain* ma = *Framework::CMain::GlobalObj;
+            auto* ci = ma->CampagnInfoHandler.GetCampagnInfo(&ma->CurrentMap);
+            auto* mapinf = ci->GetMapInfoByName(ma->CurrentMap.MapName.c_str());
+            if (mapinf->IsExternalmap) {
+                BB::CFileSystemMgr* mng = *BB::CFileSystemMgr::GlobalObj;
+                s->MapFile = mapinf->MapFilePath;
+                s->MapScriptFile = "Maps\\ExternalMap\\MapScript.lua";
+            }
+            else {
+                s->MapScriptFile = mapinf->MapFilePath;
+                s->MapScriptFile.append("\\MapScript.lua");
+            }
+        }
     }
     CheckHooked();
     if (Handler)
@@ -66,7 +81,7 @@ void debug_lua::Debugger::OnBreak(lua_State* l)
 {
     if (Handler == nullptr)
         return;
-    if (IgnoreBreak)
+    if ((Brk & BreakSettings::Break) == BreakSettings::None)
         return;
     if (Evaluating)
         return;
@@ -100,21 +115,8 @@ void debug_lua::Debugger::OnSourceLoaded(lua_State* L, const char* filename)
     auto i = std::find(States.begin(), States.end(), L);
     if (i == States.end())
         throw std::invalid_argument{ "trying to break a state that does not exist" };
-    if (filename == MapScript) {
-        Framework::CMain* ma = *Framework::CMain::GlobalObj;
-        auto* ci = ma->CampagnInfoHandler.GetCampagnInfo(&ma->CurrentMap);
-        auto* mapinf = ci->GetMapInfoByName(ma->CurrentMap.MapName.c_str());
-        if (mapinf->IsExternalmap) {
-            BB::CFileSystemMgr* mng = *BB::CFileSystemMgr::GlobalObj;
-            i->MapFile = mapinf->MapFilePath;
-            filename = "Maps\\ExternalMap\\MapScript.lua";
-            i->MapScriptFile = filename;
-        }
-        else {
-            i->MapScriptFile = mapinf->MapFilePath;
-            i->MapScriptFile.append("\\MapScript.lua");
-            filename = i->MapScriptFile.c_str();
-        }
+    if (filename == MapScript && !i->MapScriptFile.empty()) {
+        filename = i->MapScriptFile.c_str();
     }
     auto& f = i->SourcesLoaded.emplace_back(filename);
     if (Handler)
@@ -148,13 +150,11 @@ void debug_lua::Debugger::RebuildBreakpoints()
     CheckHooked();
 }
 
-void debug_lua::Debugger::SetPCallEnabled(bool e)
+void debug_lua::Debugger::SetBreakSettings(BreakSettings s)
 {
-    Hooks::ErrorCallback = e ? lua::State::CppToCFunction<ErrorFunc> : nullptr;
-}
-void debug_lua::Debugger::SetSyntaxEnabled(bool e)
-{
-    Hooks::SyntaxCallback = e ? SyntaxErrorFunc : nullptr;
+    Brk = s;
+    Hooks::ErrorCallback = (s & (BreakSettings::PCall | BreakSettings::XPCall)) != BreakSettings::None ? lua::State::CppToCFunction<ErrorFunc> : nullptr;
+    Hooks::SyntaxCallback = (s & BreakSettings::Syntax) != BreakSettings::None ? SyntaxErrorFunc : nullptr;
 }
 
 int debug_lua::Debugger::EvaluateInContext(std::string_view s, lua::State L, int lvl)
@@ -419,6 +419,15 @@ int debug_lua::Debugger::ErrorFunc(lua::State L)
     if (!th->Handler)
         return 1;
     if (th->Evaluating)
+        return 1;
+
+    BreakSettings tocheck = BreakSettings::PCall;
+    if (L.IsLightUserdata(L.Upvalueindex(1))) {
+        auto* di = static_cast<lua::DebugInfo*>(L.ToUserdata(L.Upvalueindex(1)));
+        if (di->What == std::string_view("C") && di->NameWhat == std::string_view("global") && (di->Name == std::string_view("xpcall") || di->Name == std::string_view("pcall")))
+            tocheck = BreakSettings::XPCall;
+    }
+    if ((tocheck & th->Brk) == BreakSettings::None)
         return 1;
 
     auto& s = th->GetState(L.GetState());

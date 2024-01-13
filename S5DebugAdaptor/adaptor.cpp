@@ -16,8 +16,8 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 		response.exceptionBreakpointFilters = dap::array<dap::ExceptionBreakpointsFilter>{};
 		{
 			dap::ExceptionBreakpointsFilter f{};
-			f.filter = "pcall";
-			f.label = "lua error";
+			f.filter = "lua_pcall";
+			f.label = "lua error (unhandled)";
 			f.def = true;
 			response.exceptionBreakpointFilters->push_back(f);
 		}
@@ -33,6 +33,13 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 			f.filter = "load";
 			f.label = "syntax error";
 			f.def = true;
+			response.exceptionBreakpointFilters->push_back(f);
+		}
+		{
+			dap::ExceptionBreakpointsFilter f{};
+			f.filter = "xpcall";
+			f.label = "user handled lua error (xpcall, pcall)";
+			f.def = false;
 			response.exceptionBreakpointFilters->push_back(f);
 		}
 		return response;
@@ -470,28 +477,28 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 
 	Session->registerHandler([&](const dap::SetExceptionBreakpointsRequest& r)
 		-> dap::ResponseOrError<dap::SetExceptionBreakpointsResponse> {
-		bool pcall = false, ibr = true, synt = false;
-		for (const auto& f : r.filters) {
-			if (f == "pcall")
-				pcall = true;
-			if (f == "break")
-				ibr = false;
-			if (f == "load")
-				synt = true;
-		}
-		auto c = LuaExecutionPackagedTask<dap::SetExceptionBreakpointsResponse>{ [&]() {
-			Dbg.SetPCallEnabled(pcall);
-			Dbg.IgnoreBreak = ibr;
-			Dbg.SetSyntaxEnabled(synt);
-			return dap::SetExceptionBreakpointsResponse();
-			} };
-		Dbg.RunInSHoKThread(c);
-		try {
-			return c.Get();
-		}
-		catch (const std::invalid_argument&) {
-			return dap::Error("Unknown source");
-		}
+			BreakSettings s = BreakSettings::None;
+			for (const auto& f : r.filters) {
+				if (f == "lua_pcall")
+					s |= BreakSettings::PCall;
+				if (f == "break")
+					s |= BreakSettings::Break;
+				if (f == "load")
+					s |= BreakSettings::Syntax;
+				if (f == "xpcall")
+					s |= BreakSettings::XPCall;
+			}
+			auto c = LuaExecutionPackagedTask<dap::SetExceptionBreakpointsResponse>{ [&]() {
+				Dbg.SetBreakSettings(s);
+				return dap::SetExceptionBreakpointsResponse();
+				} };
+			Dbg.RunInSHoKThread(c);
+			try {
+				return c.Get();
+			}
+			catch (const std::invalid_argument&) {
+				return dap::Error("Unknown source");
+			}
 		});
 
 	Session->registerHandler([&](const dap::LoadedSourcesRequest& r) {

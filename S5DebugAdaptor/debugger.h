@@ -6,6 +6,7 @@
 #include <map>
 
 #include "luapp/luapp50.h"
+#include "enumflags.h"
 
 namespace debug_lua {
 	class DebugState {
@@ -23,6 +24,15 @@ namespace debug_lua {
 		Exception,
 		Pause,
 	};
+	enum class BreakSettings : uint8_t {
+		None = 0,
+		PCall = 1,
+		XPCall = 1 << 1,
+		Syntax = 1 << 2,
+		Break = 1 << 3,
+	};
+	template<>
+	class ::enum_is_flags<BreakSettings> : public std::true_type {};
 
 	struct IDebugEventHandler {
 		virtual void OnStateOpened(DebugState& s) = 0;
@@ -104,9 +114,7 @@ namespace debug_lua {
 		std::mutex DataMutex;
 		std::list<LuaExecutionTask*> Tasks;
 		bool HasTasks = false, LineFix = false, Evaluating = false;
-	public:
-		bool IgnoreBreak = false;
-	private:
+		BreakSettings Brk = BreakSettings::None;
 		int LineFixLine = -1, LineFixLevel = 0;
 		std::map<int, std::vector<BreakpointFile*>> BreakpointLookup;
 
@@ -134,8 +142,7 @@ namespace debug_lua {
 		void RunInSHoKThread(LuaExecutionTask& t);
 		void Command(Request r);
 		void RebuildBreakpoints();
-		void SetPCallEnabled(bool e);
-		void SetSyntaxEnabled(bool e);
+		void SetBreakSettings(BreakSettings s);
 
 		int EvaluateInContext(std::string_view s, lua::State L, int lvl);
 		std::string OutputString(lua::State L, int n);

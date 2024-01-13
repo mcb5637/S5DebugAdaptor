@@ -58,14 +58,24 @@ int __cdecl debug_lua::Hooks::PCallOverride(lua_State* l, int nargs, int nresult
 {
 	lua::State L{ l };
 	int ehsi = 0;
+	lua::DebugInfo di{};
 	if (ErrorCallback) {
+		bool valid = L.Debug_GetStack(0, di, lua::DebugInfoOptions::Name | lua::DebugInfoOptions::Source, false);
 		if (errfunc != 0) {
 			L.PushValue(errfunc);
-			L.Push(ErrorCallback);
+			if (valid)
+				L.PushLightUserdata(&di);
+			else
+				L.Push();
+			L.Push(ErrorCallback, 1);
 			L.Push<DoubleErrorFunc>(2);
 		}
 		else {
-			L.Push(ErrorCallback);
+			if (valid)
+				L.PushLightUserdata(&di);
+			else
+				L.Push();
+			L.Push(ErrorCallback, 1);
 		}
 		ehsi = L.ToAbsoluteIndex(-nargs - 2);
 		L.Insert(ehsi);

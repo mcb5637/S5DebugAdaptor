@@ -18,6 +18,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 			dap::ExceptionBreakpointsFilter f{};
 			f.filter = "lua_pcall";
 			f.label = "lua error (unhandled)";
+			f.description = "any lua error ending up in c++ code";
 			f.def = true;
 			response.exceptionBreakpointFilters->push_back(f);
 		}
@@ -25,6 +26,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 			dap::ExceptionBreakpointsFilter f{};
 			f.filter = "break";
 			f.label = "LuaDebugger.Break()";
+			f.description = "calls to LuaDebugger.Break()";
 			f.def = true;
 			response.exceptionBreakpointFilters->push_back(f);
 		}
@@ -32,6 +34,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 			dap::ExceptionBreakpointsFilter f{};
 			f.filter = "load";
 			f.label = "syntax error";
+			f.description = "syntax errors loading any lua script";
 			f.def = true;
 			response.exceptionBreakpointFilters->push_back(f);
 		}
@@ -39,6 +42,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 			dap::ExceptionBreakpointsFilter f{};
 			f.filter = "xpcall";
 			f.label = "user handled lua error (xpcall, pcall)";
+			f.description = "any lua error that gets cought by xpcall/pcall. turn this on, if a triggerfix is spamming error messages";
 			f.def = false;
 			response.exceptionBreakpointFilters->push_back(f);
 		}

@@ -12,6 +12,10 @@
   "activationEvents": [
     "onDebug"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mcb5637/S5DebugAdaptor.git"
+  },
   "main": "./dist/extension.js",
   "contributes": {
     "breakpoints": [

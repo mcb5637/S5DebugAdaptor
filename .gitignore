@@ -365,3 +365,6 @@ MigrationBackup/
 FodyWeavers.xsd
 /S5DebugAdaptor/lua50
 /extension/dist
+/extension/LICENSE
+/extension/README.md
+/extension/s5luadebug-0.0.1.vsix

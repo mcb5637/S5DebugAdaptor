@@ -91,7 +91,7 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run package",
+    "vscode:prepublish": "npm run package & xcopy /Y ..\\README.md .\\ & xcopy /Y ..\\LICENSE .\\",
     "compile": "webpack",
     "watch": "webpack --watch",
     "package": "webpack --mode production --devtool hidden-source-map",

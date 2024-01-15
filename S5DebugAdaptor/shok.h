@@ -605,3 +605,7 @@ namespace Framework {
 	static_assert(offsetof(Framework::CMain, CampagnInfoHandler) == 174 * 4);
 	//constexpr int i = offsetof(Framework::CMain, ToDo) / 4;
 }
+
+namespace shok {
+	inline void(__cdecl* const AddGlobalToNotSerialize)(const char* n) = reinterpret_cast<void(__cdecl*)(const char*)>(0x5A1E0C);
+}

@@ -161,7 +161,7 @@ namespace debug_lua {
 		void SetHooked(DebugState& s, bool h, bool imm);
 		void WaitForRequest();
 		void TranslateRequest(lua::State L);
-		void InitializeLua(lua::State L);
+		void InitializeLua(lua::State L, bool mainmenu);
 		void CheckSourcesLoaded(DebugState& s);
 		void CheckSourcesLoadedRecursive(DebugState& s, int idx, std::set<const void*>& tablesDone);
 		void CheckSourcesLoadedFunc(DebugState& s, int idx);

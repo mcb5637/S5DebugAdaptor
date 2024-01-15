@@ -45,7 +45,7 @@ void debug_lua::Debugger::OnStateAdded(lua_State* l, const char* name)
             name = States.empty() ? "Main Menu" : "Ingame";
         bool isingame = !States.empty();
         s = &States.emplace_back(l, name);
-        InitializeLua(lua::State{ s->L });
+        InitializeLua(lua::State{ s->L }, !isingame);
         if (isingame) {
             Framework::CMain* ma = *Framework::CMain::GlobalObj;
             Framework::MapInfo* mapinf = nullptr;
@@ -349,7 +349,7 @@ void debug_lua::Debugger::TranslateRequest(lua::State L)
     }
 }
 
-void debug_lua::Debugger::InitializeLua(lua::State L)
+void debug_lua::Debugger::InitializeLua(lua::State L, bool mainmenu)
 {
     L.PushLightUserdata(&Debugger::Hook);
     L.PushLightUserdata(this);
@@ -364,6 +364,8 @@ void debug_lua::Debugger::InitializeLua(lua::State L)
         lua::FuncReference::GetRef<Debugger, &Debugger::GetUpvalue>(*this, "GetUpvalue"),
         } };
     L.RegisterGlobalLib(lib, "LuaDebugger");
+    if (mainmenu)
+        shok::AddGlobalToNotSerialize("LuaDebugger");
 }
 
 void debug_lua::Debugger::CheckSourcesLoaded(DebugState& s)

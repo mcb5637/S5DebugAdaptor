@@ -79,14 +79,17 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 					lua::DebugInfoOptions::Source, false)) {
 
 					dap::StackFrame frame;
-					frame.name = L.Debug_GetNameForStackFunc(lvl);
+					frame.name = L.Debug_GetNameForStackFunc(i);
 					if (i.What != nullptr && i.What == std::string_view{ "C" }) {
-						L.Debug_GetStack(lvl, i, lua::DebugInfoOptions::Line, true);
+						L.Debug_PushDebugInfoFunc(i);
 						frame.name += std::format(" C {}", static_cast<void*>(L.ToCFunction(-1)));
 						L.Pop(1);
 					}
 					else if (i.Source != nullptr && i.Source == std::string_view{ "?" }) {
 						frame.name += " unknown lua";
+					}
+					else if (i.Source != nullptr && i.Source == std::string_view{ "=(tail call)" }) {
+						frame.name += " tail call";
 					}
 					else if (i.Source != nullptr && i.Source == Dbg.MapScript && !l.MapScriptFile.empty()) {
 						dap::Source source;

@@ -113,7 +113,7 @@ namespace debug_lua {
 
 		std::mutex DataMutex;
 		std::list<LuaExecutionTask*> Tasks;
-		bool HasTasks = false, LineFix = false, Evaluating = false;
+		bool HasTasks = false, LineFix = false, Evaluating = false, MapJustOpened = false;
 		BreakSettings Brk = BreakSettings::None;
 		int LineFixLine = -1, LineFixLevel = 0;
 		std::map<int, std::vector<BreakpointFile*>> BreakpointLookup;
@@ -154,11 +154,16 @@ namespace debug_lua {
 	private:
 		bool IsIdentifier(std::string_view s);
 		void CheckRun();
+		void RunCallback();
 		void CheckHooked();
 		void SetHooked(DebugState& s, bool h, bool imm);
 		void WaitForRequest();
 		void TranslateRequest(lua::State L);
 		void InitializeLua(lua::State L);
+		void CheckSourcesLoaded(DebugState& s);
+		void CheckSourcesLoadedRecursive(DebugState& s, int idx, std::set<const void*>& tablesDone);
+		void CheckSourcesLoadedFunc(DebugState& s, int idx);
+		void DoAddSource(DebugState& s, std::string_view src);
 
 		static void Hook(lua::State L, lua::ActivationRecord ar);
 		static int ErrorFunc(lua::State L);

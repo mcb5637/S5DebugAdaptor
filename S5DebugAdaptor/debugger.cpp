@@ -40,7 +40,7 @@ void debug_lua::Debugger::OnStateAdded(lua_State* l, const char* name)
     {
         std::unique_lock lo{ StatesMutex };
         Hooks::InstallHook();
-        Hooks::RunCallback = std::bind(&Debugger::CheckRun, this);
+        Hooks::RunCallback = std::bind(&Debugger::RunCallback, this);
         if (name == nullptr)
             name = States.empty() ? "Main Menu" : "Ingame";
         bool isingame = !States.empty();
@@ -48,16 +48,28 @@ void debug_lua::Debugger::OnStateAdded(lua_State* l, const char* name)
         InitializeLua(lua::State{ s->L });
         if (isingame) {
             Framework::CMain* ma = *Framework::CMain::GlobalObj;
-            auto* ci = ma->CampagnInfoHandler.GetCampagnInfo(&ma->CurrentMap);
-            auto* mapinf = ci->GetMapInfoByName(ma->CurrentMap.MapName.c_str());
-            if (mapinf->IsExternalmap) {
-                BB::CFileSystemMgr* mng = *BB::CFileSystemMgr::GlobalObj;
-                s->MapFile = mapinf->MapFilePath;
-                s->MapScriptFile = "Maps\\ExternalMap\\MapScript.lua";
+            Framework::MapInfo* mapinf = nullptr;
+            if (ma->ToDo == Framework::CMain::NextMode::LoadSaveSP) {
+                Framework::SavegameSystem* sa = Framework::SavegameSystem::GlobalObj();
+                auto* ci = ma->CampagnInfoHandler.GetCampagnInfo(&sa->CurrentSave->MapData);
+                mapinf = ci->GetMapInfoByName(sa->CurrentSave->MapData.MapName.c_str());
             }
-            else {
-                s->MapScriptFile = mapinf->MapFilePath;
-                s->MapScriptFile.append("\\MapScript.lua");
+            else if (ma->ToDo == Framework::CMain::NextMode::RestartMapSP || ma->ToDo == Framework::CMain::NextMode::StartMapSP
+                || ma->ToDo == Framework::CMain::NextMode::StartMapMP) {
+                auto* ci = ma->CampagnInfoHandler.GetCampagnInfo(&ma->CurrentMap);
+                mapinf = ci->GetMapInfoByName(ma->CurrentMap.MapName.c_str());
+            }
+            if (mapinf != nullptr) {
+                if (mapinf->IsExternalmap) {
+                    BB::CFileSystemMgr* mng = *BB::CFileSystemMgr::GlobalObj;
+                    s->MapFile = mapinf->MapFilePath;
+                    s->MapScriptFile = "Maps\\ExternalMap\\MapScript.lua";
+                }
+                else {
+                    s->MapScriptFile = mapinf->MapFilePath;
+                    s->MapScriptFile.append("\\MapScript.lua");
+                }
+                MapJustOpened = true;
             }
         }
     }
@@ -115,12 +127,7 @@ void debug_lua::Debugger::OnSourceLoaded(lua_State* L, const char* filename)
     auto i = std::find(States.begin(), States.end(), L);
     if (i == States.end())
         throw std::invalid_argument{ "trying to break a state that does not exist" };
-    if (filename == MapScript && !i->MapScriptFile.empty()) {
-        filename = i->MapScriptFile.c_str();
-    }
-    auto& f = i->SourcesLoaded.emplace_back(filename);
-    if (Handler)
-        Handler->OnSourceAdded(*i, f);
+    DoAddSource(*i, filename);
 }
 
 void debug_lua::Debugger::RunInSHoKThread(LuaExecutionTask& t)
@@ -248,6 +255,17 @@ std::string debug_lua::Debugger::ToDebugString_Format::LuaFuncSourceFormat(lua::
     return std::format("{}:{}", src, d.LineDefined);
 }
 
+void debug_lua::Debugger::RunCallback()
+{
+    CheckRun();
+    if (MapJustOpened) {
+        std::unique_lock lo{ StatesMutex };
+        for (size_t i = 1; i < States.size(); ++i) {
+            CheckSourcesLoaded(States[i]);
+        }
+        MapJustOpened = false;
+    }
+}
 void debug_lua::Debugger::CheckRun()
 {
     if (!HasTasks)
@@ -329,6 +347,59 @@ void debug_lua::Debugger::InitializeLua(lua::State L)
         lua::FuncReference::GetRef<Debugger, &Debugger::GetUpvalue>(*this, "GetUpvalue"),
         } };
     L.RegisterGlobalLib(lib, "LuaDebugger");
+}
+
+void debug_lua::Debugger::CheckSourcesLoaded(DebugState& s)
+{
+    if (s.SourcesLoaded.size() > 2) // modloader, userscript
+        return;
+    lua::State L{ s.L };
+    int t = L.GetTop();
+    L.PushGlobalTable();
+    std::set<const void*> tablesDone{};
+    CheckSourcesLoadedRecursive(s, -1, tablesDone);
+    L.SetTop(t);
+}
+void debug_lua::Debugger::CheckSourcesLoadedRecursive(DebugState& s, int idx, std::set<const void*>& tablesDone)
+{
+    lua::State L{ s.L };
+    if (!L.CheckStack(3))
+        return;
+    const void* p = L.ToPointer(idx);
+    if (tablesDone.find(p) != tablesDone.end())
+        return;
+    tablesDone.insert(p);
+    for (const auto t : L.Pairs(idx)) {
+        if (t == lua::LType::Function)
+            CheckSourcesLoadedFunc(s, -2);
+        if (L.IsFunction(-1))
+            CheckSourcesLoadedFunc(s, -1);
+        if (t == lua::LType::Table)
+            CheckSourcesLoadedRecursive(s, -2, tablesDone);
+        if (L.IsTable(-1))
+            CheckSourcesLoadedRecursive(s, -1, tablesDone);
+    }
+}
+void debug_lua::Debugger::CheckSourcesLoadedFunc(DebugState& s, int idx)
+{
+    lua::State L{ s.L };
+    if (L.IsCFunction(idx))
+        return;
+    L.PushValue(idx);
+    lua::DebugInfo i = L.Debug_GetInfoForFunc(lua::DebugInfoOptions::Source);
+    if (std::find_if(s.SourcesLoaded.begin(), s.SourcesLoaded.end(), [i](const std::string& s) { return s == i.Source; }) == s.SourcesLoaded.end()) {
+        DoAddSource(s, i.Source);
+    }
+}
+
+void debug_lua::Debugger::DoAddSource(DebugState& s, std::string_view src)
+{
+    if (src == MapScript && !s.MapScriptFile.empty()) {
+        src = s.MapScriptFile.c_str();
+    }
+    auto& f = s.SourcesLoaded.emplace_back(src);
+    if (Handler)
+        Handler->OnSourceAdded(s, f);
 }
 
 void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)

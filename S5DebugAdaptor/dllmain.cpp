@@ -109,3 +109,13 @@ extern "C" {
 bool __declspec(dllexport) __stdcall HasRealDebugger() {
 	return true;
 }
+
+bool __declspec(dllexport) __stdcall DebuggerAttached() {
+	return debugger.Handler != nullptr;
+}
+
+void __declspec(dllexport) __stdcall ShutdownDebugger() {
+	debugger.OnShutdown([]() {
+		serv = nullptr;
+		});
+}

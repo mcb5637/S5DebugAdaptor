@@ -130,6 +130,23 @@ void debug_lua::Debugger::OnSourceLoaded(lua_State* L, const char* filename)
     DoAddSource(*i, filename);
 }
 
+void debug_lua::Debugger::OnShutdown(std::function<void()> cb)
+{
+    struct S : LuaExecutionTask {
+        Debugger& D;
+        std::function<void()> Cb;
+        S(Debugger& d, std::function<void()> cb) : D(d), Cb(cb) {}
+        virtual void Work() override {
+            if (D.Handler)
+                D.Handler->OnShutdown();
+            Cb();
+            delete this;
+        }
+    };
+    auto c = new S{*this, cb};
+    RunInSHoKThread(*c);
+}
+
 void debug_lua::Debugger::RunInSHoKThread(LuaExecutionTask& t)
 {
     std::unique_lock l{ DataMutex };

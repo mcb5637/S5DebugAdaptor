@@ -741,3 +741,16 @@ void debug_lua::Adaptor::OnSourceAdded(DebugState& s, std::string_view f)
 	ev.source.path = dap::string{ f };
 	Session->send(ev);
 }
+
+void debug_lua::Adaptor::OnShutdown()
+{
+	{
+		dap::TerminatedEvent ev;
+		Session->send(ev);
+		std::lock_guard<std::mutex> lock(MutexTerminate);
+		TerminateDebugger = true;
+		Dbg.Handler = nullptr;
+		Dbg.Command(Debugger::Request::Resume);
+	}
+	ConditionTerminate.notify_one();
+}

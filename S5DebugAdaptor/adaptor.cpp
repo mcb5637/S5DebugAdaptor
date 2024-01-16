@@ -675,8 +675,14 @@ void debug_lua::Adaptor::OnStateClosing(DebugState& s, bool lastState)
 	ev.reason = "exited";
 	Session->send(ev);
 	if (lastState) {
-		dap::TerminatedEvent ev;
-		Session->send(ev);
+		{
+			dap::TerminatedEvent ev;
+			Session->send(ev);
+			std::lock_guard<std::mutex> lock(MutexTerminate);
+			TerminateDebugger = true;
+			Dbg.Handler = nullptr;
+		}
+		ConditionTerminate.notify_one();
 	}
 	else {
 		for (const auto& src : s.SourcesLoaded) {
@@ -723,6 +729,7 @@ void debug_lua::Adaptor::OnPaused(DebugState& s, Reason r, std::string_view exce
 	}
 	ev.allThreadsStopped = true;
 	ev.threadId = reinterpret_cast<int>(s.L);
+	ev.preserveFocusHint = false;
 	Session->send(ev);
 }
 

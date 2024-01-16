@@ -4,6 +4,7 @@
 #include <thread>
 #include "Hooks.h"
 #include "shok.h"
+#include "winhelpers.h"
 
 bool debug_lua::operator==(DebugState d, lua_State* l)
 {
@@ -326,11 +327,15 @@ void debug_lua::Debugger::SetHooked(DebugState& s, bool h, bool imm)
 void debug_lua::Debugger::WaitForRequest()
 {
     CheckRun();
+    HadForeground = GetForegroundWindow() == *shok::MainWindowHandle;
     while (Re == Request::Pause)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds{ 10 });
+        ProcessBasicWindowEvents();
         CheckRun();
     }
+    if (HadForeground)
+        SetForegroundWindow(*shok::MainWindowHandle);
 }
 void debug_lua::Debugger::TranslateRequest(lua::State L)
 {

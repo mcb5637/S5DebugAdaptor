@@ -608,4 +608,7 @@ namespace Framework {
 
 namespace shok {
 	inline void(__cdecl* const AddGlobalToNotSerialize)(const char* n) = reinterpret_cast<void(__cdecl*)(const char*)>(0x5A1E0C);
+	static inline HWND* MainWindowHandle = reinterpret_cast<HWND*>(0x84ECC4);
+	// format i int, f float, x hex int, c char, s const char*
+	static inline void (* const LogString)(const char* format, ...) = reinterpret_cast<void (*)(const char* format, ...)>(0x548268);
 }

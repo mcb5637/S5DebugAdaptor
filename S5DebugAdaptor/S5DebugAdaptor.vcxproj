@@ -185,6 +185,7 @@
     <ClInclude Include="server.h" />
     <ClInclude Include="shok.h" />
     <ClInclude Include="utility.h" />
+    <ClInclude Include="winhelpers.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="adaptor.cpp" />
@@ -204,6 +205,7 @@
     <ClCompile Include="server.cpp" />
     <ClCompile Include="shok.cpp" />
     <ClCompile Include="utility.cpp" />
+    <ClCompile Include="winhelpers.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="vcpkg.json" />

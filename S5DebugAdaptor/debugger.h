@@ -118,6 +118,7 @@ namespace debug_lua {
 		BreakSettings Brk = BreakSettings::None;
 		int LineFixLine = -1, LineFixLevel = 0;
 		std::map<int, std::vector<BreakpointFile*>> BreakpointLookup;
+		bool HadForeground = false;
 
 	public:
 		IDebugEventHandler* Handler = nullptr;

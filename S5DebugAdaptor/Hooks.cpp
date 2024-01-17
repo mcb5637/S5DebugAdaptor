@@ -42,6 +42,10 @@ int __declspec(naked) __cdecl pcall_recovered(lua_State* L, int nargs, int nresu
 	__asm {
 		mov eax, [esp + 0x10];
 		sub esp, 8;
+
+		mov ecx, eax;
+		mov edx, eax;
+
 		push pcall_jumpback;
 		ret;
 	};
@@ -93,6 +97,10 @@ int __declspec(naked) __cdecl load_recovered(lua_State* L, void* reader, void* d
 	__asm {
 		mov eax, [esp + 0x10];
 		sub esp, 0x14;
+
+		mov ecx, eax;
+		mov edx, eax;
+
 		push load_jumpback;
 		ret;
 	};

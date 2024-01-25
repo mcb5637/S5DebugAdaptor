@@ -14,6 +14,8 @@ namespace debug_lua {
 		static LRESULT __stdcall WinProcHook(HWND wnd, UINT msg, WPARAM w, LPARAM l);
 		static int __cdecl PCallOverride(lua_State* L, int nargs, int nresults, int errfunc);
 		static int __cdecl LoadOverride(lua_State* L, void* reader, void* data, const char* chunkname);
+		static int __cdecl LoadOverride_Dbg(lua_State* L, void* reader, void* data, const char* chunkname, const char* mode);
+		static int __cdecl PCallOverride_Dbg(lua_State* L, int nargs, int nresults, int errfunc, ptrdiff_t* ctx, void* k);
 	public:
 		static void InstallHook();
 

@@ -4,6 +4,17 @@
 #include "luapp/luapp50.h"
 #include "shok.h"
 
+namespace lua_debughook {
+	struct DebuggerOverrides {
+		int(__cdecl* lua_load_debug)(lua_State* L, void* reader, void* data, const char* chunkname, const char* mode);
+		int(__cdecl* lua_pcallk_debug)(lua_State* L, int nargs, int nresults, int errfunc, ptrdiff_t* ctx, void* k);
+	};
+}
+
+lua_debughook::DebuggerOverrides* Overrides = nullptr;
+int(__cdecl* lua_load_real)(lua_State* L, void* reader, void* data, const char* chunkname, const char* mode) = nullptr;
+int(__cdecl* lua_pcallk_real)(lua_State* L, int nargs, int nresults, int errfunc, ptrdiff_t* ctx, void* k) = nullptr;
+
 LRESULT __stdcall debug_lua::Hooks::WinProcHook(HWND wnd, UINT msg, WPARAM w, LPARAM l)
 {
 	if (RunCallback)
@@ -113,6 +124,47 @@ int __cdecl debug_lua::Hooks::LoadOverride(lua_State* L, void* reader, void* dat
 	return r;
 }
 
+int __cdecl debug_lua::Hooks::LoadOverride_Dbg(lua_State* L, void* reader, void* data, const char* chunkname, const char* mode)
+{
+	int r = lua_load_real(L, reader, data, chunkname, mode);
+	if (r != static_cast<int>(lua::ErrorCode::Success) && SyntaxCallback)
+		SyntaxCallback(L, r);
+	return r;
+}
+
+int __cdecl debug_lua::Hooks::PCallOverride_Dbg(lua_State* l, int nargs, int nresults, int errfunc, ptrdiff_t* ctx, void* k)
+{
+	lua::State L{ l };
+	int ehsi = 0;
+	lua::DebugInfo di{};
+	if (ErrorCallback) {
+		bool valid = L.Debug_GetStack(0, di, lua::DebugInfoOptions::Name | lua::DebugInfoOptions::Source, false);
+		if (errfunc != 0) {
+			L.PushValue(errfunc);
+			if (valid)
+				L.PushLightUserdata(&di);
+			else
+				L.Push();
+			L.Push(ErrorCallback, 1);
+			L.Push<DoubleErrorFunc>(2);
+		}
+		else {
+			if (valid)
+				L.PushLightUserdata(&di);
+			else
+				L.Push();
+			L.Push(ErrorCallback, 1);
+		}
+		ehsi = L.ToAbsoluteIndex(-nargs - 2);
+		L.Insert(ehsi);
+		errfunc = ehsi;
+	}
+	int r = lua_pcallk_real(l, nargs, nresults, errfunc, ctx, k);
+	if (ErrorCallback) {
+		L.Remove(ehsi);
+	}
+	return r;
+}
 
 std::function<void()> debug_lua::Hooks::RunCallback{};
 int(*debug_lua::Hooks::ErrorCallback)(lua_State* L) = nullptr;
@@ -129,13 +181,34 @@ void debug_lua::Hooks::InstallHook()
 	auto handle = GetModuleHandle("S5Lua5");
 	if (!handle)
 		return;
+
+	auto getover = reinterpret_cast<lua_debughook::DebuggerOverrides&(*)()>(GetProcAddress(handle, "?GetOverrides@lua_debughook@@YAAAUDebuggerOverrides@1@XZ"));
+	if (getover != nullptr) {
+		Overrides = &getover();
+		lua_pcallk_real = reinterpret_cast<int(__cdecl*)(lua_State * L, int nargs, int nresults, int errfunc, ptrdiff_t * ctx, void* k)>(GetProcAddress(handle, "?lua_pcallk_real@lua_debughook@@YAHPAUlua_State@@HHHHP6AH0HH@Z@Z"));
+		lua_load_real = reinterpret_cast<int(__cdecl *)(lua_State * L, void* reader, void* data, const char* chunkname, const char* mode)>(GetProcAddress(handle, "?lua_load_real@lua_debughook@@YAHPAUlua_State@@P6APBD0PAXPAI@Z1PBD4@Z"));
+
+		Overrides->lua_load_debug = &LoadOverride_Dbg;
+		Overrides->lua_pcallk_debug = &PCallOverride_Dbg;
+
+		return;
+	}
+
 	int pcall = reinterpret_cast<int>(GetProcAddress(handle, "lua_pcall"));
+	if (*reinterpret_cast<uint32_t*>(pcall) != 0x1024448B) {
+		MessageBoxA(0, "lua_pcall code mismatch, exception breakpoints will not work!", nullptr, 0);
+		return;
+	}
 	pcall_jumpback = pcall + 7;
 
 	SaveVirtualProtect vp2{ reinterpret_cast<void*>(pcall), static_cast<size_t>(pcall_jumpback - pcall) };
 	WriteJump(reinterpret_cast<void*>(pcall), &PCallOverride, reinterpret_cast<void*>(pcall_jumpback));
 
 	int load = reinterpret_cast<int>(GetProcAddress(handle, "lua_load"));
+	if (*reinterpret_cast<uint32_t*>(load) != 0x1024448B) {
+		MessageBoxA(0, "lua_load code mismatch, syntax breakpoints will not work!", nullptr, 0);
+		return;
+	}
 	load_jumpback = load + 7;
 
 	SaveVirtualProtect vp3{ reinterpret_cast<void*>(load), static_cast<size_t>(load_jumpback - load) };

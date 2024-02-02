@@ -9,11 +9,16 @@
 #include "enumflags.h"
 
 namespace debug_lua {
+	struct Source {
+		std::string Internal, External;
+
+		auto operator<=>(const Source&) const noexcept = default;
+	};
 	class DebugState {
 	public:
 		lua_State* L;
 		const char* Name;
-		std::vector<std::string> SourcesLoaded;
+		std::vector<Source> SourcesLoaded;
 		std::string MapFile;
 		std::string MapScriptFile;
 	};
@@ -87,7 +92,7 @@ namespace debug_lua {
 	};
 
 	struct BreakpointFile {
-		std::string Filename;
+		const Source& Source;
 		std::vector<int> Lines;
 	};
 
@@ -153,6 +158,12 @@ namespace debug_lua {
 		struct ToDebugString_Format : lua::State::ToDebugString_Format {
 			static std::string LuaFuncSourceFormat(lua::State L, int index, const lua::DebugInfo& d);
 		};
+
+		std::string TranslateSourceString(const DebugState& s, std::string_view src);
+
+		Source* SearchInternal(std::string_view i);
+		Source* SearchExternal(std::string_view e);
+		std::string FindSource(const DebugState& s, std::string_view i);
 
 	private:
 		bool IsIdentifier(std::string_view s);

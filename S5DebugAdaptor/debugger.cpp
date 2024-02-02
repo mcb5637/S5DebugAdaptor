@@ -5,6 +5,7 @@
 #include "Hooks.h"
 #include "shok.h"
 #include "winhelpers.h"
+#include "utility.h"
 
 bool debug_lua::operator==(DebugState d, lua_State* l)
 {
@@ -260,17 +261,52 @@ std::string debug_lua::Debugger::OutputString(lua::State L, int n)
 
 std::string debug_lua::Debugger::ToDebugString_Format::LuaFuncSourceFormat(lua::State L, int index, const lua::DebugInfo& d)
 {
-    std::string_view src = d.Source;
-    if (d.Source != nullptr && d.Source == MapScript) {
-        L.PushLightUserdata(&Debugger::Hook);
-        L.GetTableRaw(L.REGISTRYINDEX);
-        auto th = static_cast<Debugger*>(L.ToUserdata(-1));
-        L.Pop(1);
-        auto& s = th->GetState(L.GetState());
+    L.PushLightUserdata(&Debugger::Hook);
+    L.GetTableRaw(L.REGISTRYINDEX);
+    auto th = static_cast<Debugger*>(L.ToUserdata(-1));
+    L.Pop(1);
+    auto src = d.Source == nullptr ? "" : th->FindSource(th->GetState(L.GetState()), d.Source);
+    return std::format("{}:{}", src, d.LineDefined);
+}
+
+std::string debug_lua::Debugger::TranslateSourceString(const DebugState& s, std::string_view src)
+{
+    if (src == MapScript) {
         if (!s.MapScriptFile.empty())
             src = s.MapScriptFile;
     }
-    return std::format("{}:{}", src, d.LineDefined);
+    return ANSIToUTF8(src);
+}
+
+debug_lua::Source* debug_lua::Debugger::SearchInternal(std::string_view i)
+{
+    std::unique_lock lo{ StatesMutex };
+    for (DebugState& r : States) {
+        for (auto& s : r.SourcesLoaded) {
+            if (s.Internal == i)
+                return &s;
+        }
+    }
+    return nullptr;
+}
+debug_lua::Source* debug_lua::Debugger::SearchExternal(std::string_view e)
+{
+    std::unique_lock lo{ StatesMutex };
+    for (DebugState& r : States) {
+        for (auto& s : r.SourcesLoaded) {
+            if (s.External == e)
+                return &s;
+        }
+    }
+    return nullptr;
+}
+std::string debug_lua::Debugger::FindSource(const DebugState& s, std::string_view i)
+{
+    auto sr = SearchInternal(i);
+    if (sr != nullptr) {
+        return sr->External;
+    }
+    return TranslateSourceString(s, i);
 }
 
 void debug_lua::Debugger::RunCallback()
@@ -411,19 +447,17 @@ void debug_lua::Debugger::CheckSourcesLoadedFunc(DebugState& s, int idx)
         return;
     L.PushValue(idx);
     lua::DebugInfo i = L.Debug_GetInfoForFunc(lua::DebugInfoOptions::Source);
-    if (std::find_if(s.SourcesLoaded.begin(), s.SourcesLoaded.end(), [i](const std::string& s) { return s == i.Source; }) == s.SourcesLoaded.end()) {
-        DoAddSource(s, i.Source);
+    auto src = i.Source == nullptr ? "" : std::string_view{ i.Source };
+    if (std::find_if(s.SourcesLoaded.begin(), s.SourcesLoaded.end(), [src](const Source& s) { return s.Internal == src; }) == s.SourcesLoaded.end()) {
+        DoAddSource(s, src);
     }
 }
 
 void debug_lua::Debugger::DoAddSource(DebugState& s, std::string_view src)
 {
-    if (src == MapScript && !s.MapScriptFile.empty()) {
-        src = s.MapScriptFile.c_str();
-    }
-    auto& f = s.SourcesLoaded.emplace_back(src);
+    auto& f = s.SourcesLoaded.emplace_back(std::string(src), TranslateSourceString(s, src));
     if (Handler)
-        Handler->OnSourceAdded(s, f);
+        Handler->OnSourceAdded(s, f.External);
 }
 
 void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
@@ -433,6 +467,9 @@ void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
     auto th = static_cast<Debugger*>(L.ToUserdata(-1));
     L.Pop(1);
     auto& s = th->GetState(L.GetState());
+
+    if (th->Evaluating)
+        return;
 
     int line = -1;
     bool checkBreakpoint = false;
@@ -461,9 +498,6 @@ void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
         checkBreakpoint = true;
     }
 
-    if (th->Evaluating)
-        return;
-
     th->TranslateRequest(L);
     if (th->Re == Request::Pause && th->St == Status::Running) {
         th->St = Status::Paused;
@@ -475,10 +509,8 @@ void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
         if (it != th->BreakpointLookup.end()) {
             auto dinf = L.Debug_GetInfoFromAR(ar, lua::DebugInfoOptions::Source);
             if (dinf.Source != nullptr) {
-                if (!s.MapScriptFile.empty() && dinf.Source == MapScript) {
-                    dinf.Source = s.MapScriptFile.c_str();
-                }
-                auto it2 = std::find_if(it->second.begin(), it->second.end(), [dinf](BreakpointFile* f) {return dinf.Source == f->Filename; });
+                std::string_view src = dinf.Source;
+                auto it2 = std::find_if(it->second.begin(), it->second.end(), [src](BreakpointFile* f) {return src == f->Source.Internal; });
                 if (it2 != it->second.end()) {
                     th->Re = Request::Pause;
                     th->St = Status::Paused;

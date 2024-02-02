@@ -13,4 +13,9 @@ namespace debug_lua {
 		void operator=(EnsureBbaLoaded&&) = delete;
 		~EnsureBbaLoaded();
 	};
+
+	std::string ANSIToUTF8(std::string_view data);
+	std::string UTF8ToANSI(std::string_view data);
+
+	std::string EnsureUTF8(std::string_view data);
 }

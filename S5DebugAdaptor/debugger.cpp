@@ -2,6 +2,8 @@
 #include "debugger.h"
 #include <regex>
 #include <thread>
+#include <filesystem>
+#include <uni_algo/case.h>
 #include "Hooks.h"
 #include "shok.h"
 #include "winhelpers.h"
@@ -74,8 +76,8 @@ void debug_lua::Debugger::OnStateAdded(lua_State* l, const char* name)
                 MapJustOpened = true;
             }
         }
+        CheckHooked();
     }
-    CheckHooked();
     if (Handler)
         Handler->OnStateOpened(*s);
 }
@@ -117,7 +119,10 @@ void debug_lua::Debugger::OnBreak(lua_State* l)
     Handler->OnPaused(*s, Reason::Breakpoint, "");
 
     LineFix = true;
-    CheckHooked();
+    {
+        std::unique_lock lo{ StatesMutex };
+        CheckHooked();
+    }
     WaitForRequest();
     TranslateRequest(lua::State{l});
     St = Status::Running;
@@ -159,6 +164,7 @@ void debug_lua::Debugger::RunInSHoKThread(LuaExecutionTask& t)
 
 void debug_lua::Debugger::Command(Request r)
 {
+    std::unique_lock lo{ StatesMutex };
     Re = r;
     if (r == Request::Pause)
         LineFix = true;
@@ -169,8 +175,11 @@ void debug_lua::Debugger::RebuildBreakpoints()
 {
     BreakpointLookup.clear();
     for (auto& b : Breakpoints) {
+        auto* s = SearchExternalUnsafe(b.SourceExternal);
+        if (s == nullptr)
+            continue;
         for (auto l : b.Lines) {
-            BreakpointLookup[l].push_back(&b);
+            BreakpointLookup.insert(std::make_pair(l, s));
         }
     }
     CheckHooked();
@@ -275,6 +284,14 @@ std::string debug_lua::Debugger::TranslateSourceString(const DebugState& s, std:
         if (!s.MapScriptFile.empty())
             src = s.MapScriptFile;
     }
+    BB::CFileSystemMgr* mng = *BB::CFileSystemMgr::GlobalObj;
+    char abs[2001] = {};
+    BB::IFileSystem::FileInfo inf{};
+    mng->GetFileInfo(&inf, src.data(), 0, abs);
+    if (inf.Found && *abs) { // archives dont fill out abs (because that would be useless anyway)
+        auto data = std::filesystem::absolute(std::filesystem::path(abs, std::filesystem::path::native_format)).string();
+        return ANSIToUTF8(data);
+    }
     return ANSIToUTF8(src);
 }
 
@@ -292,9 +309,13 @@ debug_lua::Source* debug_lua::Debugger::SearchInternal(std::string_view i)
 debug_lua::Source* debug_lua::Debugger::SearchExternal(std::string_view e)
 {
     std::unique_lock lo{ StatesMutex };
+    return SearchExternalUnsafe(e);
+}
+debug_lua::Source* debug_lua::Debugger::SearchExternalUnsafe(std::string_view e)
+{
     for (DebugState& r : States) {
         for (auto& s : r.SourcesLoaded) {
-            if (s.External == e)
+            if (una::caseless::compare_utf8(s.External, e) == 0)
                 return &s;
         }
     }
@@ -341,7 +362,6 @@ void debug_lua::Debugger::CheckRun()
 
 void debug_lua::Debugger::CheckHooked()
 {
-    std::unique_lock lo{ StatesMutex };
     bool h = Re != Request::Resume || !BreakpointLookup.empty();
     for (auto& s : States)
         SetHooked(s, h, LineFix);
@@ -458,13 +478,14 @@ void debug_lua::Debugger::DoAddSource(DebugState& s, std::string_view src)
     auto& f = s.SourcesLoaded.emplace_back(std::string(src), TranslateSourceString(s, src));
     if (Handler)
         Handler->OnSourceAdded(s, f.External);
+    RebuildBreakpoints();
 }
 
 void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
 {
     L.PushLightUserdata(&Debugger::Hook);
     L.GetTableRaw(L.REGISTRYINDEX);
-    auto th = static_cast<Debugger*>(L.ToUserdata(-1));
+    auto* th = static_cast<Debugger*>(L.ToUserdata(-1));
     L.Pop(1);
     auto& s = th->GetState(L.GetState());
 
@@ -492,6 +513,7 @@ void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
             th->LineFix = false;
             th->LineFixLevel = 0;
             th->LineFixLine = -1;
+            std::unique_lock lo{ th->StatesMutex };
             th->CheckHooked();
         }
         line = ar.Line();
@@ -505,13 +527,13 @@ void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
             th->Handler->OnPaused(s, Reason::Pause, "");
     }
     else if (checkBreakpoint && !th->BreakpointLookup.empty() && th->St == Status::Running) {
-        auto it = th->BreakpointLookup.find(line);
-        if (it != th->BreakpointLookup.end()) {
-            auto dinf = L.Debug_GetInfoFromAR(ar, lua::DebugInfoOptions::Source);
-            if (dinf.Source != nullptr) {
-                std::string_view src = dinf.Source;
-                auto it2 = std::find_if(it->second.begin(), it->second.end(), [src](BreakpointFile* f) {return src == f->Source.Internal; });
-                if (it2 != it->second.end()) {
+        auto dinf = L.Debug_GetInfoFromAR(ar, lua::DebugInfoOptions::Source);
+        if (dinf.Source != nullptr) {
+            auto [it, end] = th->BreakpointLookup.equal_range(line);
+            std::string_view src = dinf.Source;
+            for (; it != end; ++it) {
+                auto& [key, sr] = *it;
+                if (src == sr->Internal) {
                     th->Re = Request::Pause;
                     th->St = Status::Paused;
                     if (th->Handler)

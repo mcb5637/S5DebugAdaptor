@@ -92,7 +92,7 @@ namespace debug_lua {
 	};
 
 	struct BreakpointFile {
-		const Source& Source;
+		std::string SourceExternal;
 		std::vector<int> Lines;
 	};
 
@@ -122,7 +122,7 @@ namespace debug_lua {
 		bool HasTasks = false, LineFix = false, Evaluating = false, MapJustOpened = false;
 		BreakSettings Brk = BreakSettings::None;
 		int LineFixLine = -1, LineFixLevel = 0;
-		std::map<int, std::vector<BreakpointFile*>> BreakpointLookup;
+		std::multimap<int, Source*> BreakpointLookup;
 		bool HadForeground = false;
 
 	public:
@@ -166,6 +166,7 @@ namespace debug_lua {
 		std::string FindSource(const DebugState& s, std::string_view i);
 
 	private:
+		Source* SearchExternalUnsafe(std::string_view e);
 		bool IsIdentifier(std::string_view s);
 		void CheckRun();
 		void RunCallback();

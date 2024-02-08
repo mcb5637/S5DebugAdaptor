@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "adaptor.h"
+#include <uni_algo/case.h>
 #include "shok.h"
 #include "utility.h"
 
@@ -442,15 +443,15 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 				if (!request.source.path.has_value())
 					throw std::invalid_argument{"unknown"};
 
+				std::unique_lock l{ Dbg.StatesMutex };
 				dap::SetBreakpointsResponse r;
 				const dap::string& p = *request.source.path;
-				auto it = std::find_if(Dbg.Breakpoints.begin(), Dbg.Breakpoints.end(), [p](BreakpointFile f) {return p == f.Source.External; });
+				auto it = std::find_if(Dbg.Breakpoints.begin(), Dbg.Breakpoints.end(), [p](BreakpointFile f) {
+					return una::caseless::compare_utf8(p, f.SourceExternal) == 0; 
+					});
 				BreakpointFile* f;
 				if (it == Dbg.Breakpoints.end()) {
-					auto* s = Dbg.SearchExternal(p);
-					if (s == nullptr)
-						throw std::invalid_argument("unknown source");
-					f = &Dbg.Breakpoints.emplace_back(*s);
+					f = &Dbg.Breakpoints.emplace_back(p);
 				}
 				else {
 					f = &(*it);

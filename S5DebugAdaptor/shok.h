@@ -591,7 +591,21 @@ namespace Framework {
 			Framework::CampagnInfo* GetCampagnInfo(GS3DTools::CMapData* d);
 
 		} CampagnInfoHandler;
-		
+		struct SUserPaths {
+			shok::String SaveGames, // 0
+				Temp_DebugSaves, // 7
+				Temp_Replays, // 14
+				Data, // 21
+				Temp_Logs_TinCat, // 28
+				Data2, // 35
+				Temp_UbiCom, // 42
+				Script, // 49
+				Screenshots, // 56
+				Temp_Grab, // 63
+				Temp_Logs_Game, // 70
+				Temp_MiniDump; // 77
+			shok::String Empties[7];
+		}*UserPaths;
 
 		static inline constexpr int vtp = 0x76293C;
 

@@ -378,7 +378,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 				int t = L.GetTop();
 
 				int n = Dbg.EvaluateInContext(request.expression, L, lvl);
-				r.result = EnsureUTF8(Dbg.OutputString(L, n));
+				r.result = Dbg.OutputString(L, n);
 				
 				L.SetTop(t);
 				return r;
@@ -736,7 +736,7 @@ void debug_lua::Adaptor::OnLog(std::string_view s)
 {
 	dap::OutputEvent ev;
 	ev.category = "stdout";
-	ev.output = EnsureUTF8(s);
+	ev.output = s;
 	Session->send(ev);
 }
 

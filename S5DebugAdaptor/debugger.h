@@ -157,6 +157,7 @@ namespace debug_lua {
 
 		struct ToDebugString_Format : lua::State::ToDebugString_Format {
 			static std::string LuaFuncSourceFormat(lua::State L, int index, const lua::DebugInfo& d);
+			static std::string StringFormat(lua::State L, int index);
 		};
 
 		std::string TranslateSourceString(const DebugState& s, std::string_view src);

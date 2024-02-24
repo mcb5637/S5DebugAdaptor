@@ -277,6 +277,11 @@ std::string debug_lua::Debugger::ToDebugString_Format::LuaFuncSourceFormat(lua::
     auto src = d.Source == nullptr ? "" : th->FindSource(th->GetState(L.GetState()), d.Source);
     return std::format("{}:{}", src, d.LineDefined);
 }
+std::string debug_lua::Debugger::ToDebugString_Format::StringFormat(lua::State L, int index)
+{
+    auto sv = L.ToStringView(index);
+    return '\"' + EnsureUTF8(sv) + '\"';
+}
 
 std::string debug_lua::Debugger::TranslateSourceString(const DebugState& s, std::string_view src)
 {

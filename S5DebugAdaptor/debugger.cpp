@@ -38,7 +38,7 @@ int debug_lua::Debugger::GetStateIndex(const DebugState& s)
     throw std::invalid_argument{ "state does not exist" };
 }
 
-void debug_lua::Debugger::OnStateAdded(lua_State* l, const char* name)
+void debug_lua::Debugger::OnStateAdded(lua_State* l, const char* name, lua::CFunction shutdown)
 {
     DebugState* s;
     {
@@ -49,7 +49,7 @@ void debug_lua::Debugger::OnStateAdded(lua_State* l, const char* name)
             name = States.empty() ? "Main Menu" : "Ingame";
         bool isingame = !States.empty();
         s = &States.emplace_back(l, name);
-        InitializeLua(lua::State{ s->L }, !isingame);
+        InitializeLua(lua::State{ s->L }, !isingame, shutdown);
         if (isingame) {
             Framework::CMain* ma = *Framework::CMain::GlobalObj;
             Framework::MapInfo* mapinf = nullptr;
@@ -415,20 +415,21 @@ void debug_lua::Debugger::TranslateRequest(lua::State L)
     }
 }
 
-void debug_lua::Debugger::InitializeLua(lua::State L, bool mainmenu)
+void debug_lua::Debugger::InitializeLua(lua::State L, bool mainmenu, lua::CFunction shutdown)
 {
     L.PushLightUserdata(&Debugger::Hook);
     L.PushLightUserdata(this);
     L.SetTableRaw(L.REGISTRYINDEX);
 
-    std::array<lua::FuncReference, 6> lib{ {
+    std::array lib{
         lua::FuncReference::GetRef<Debugger, &Debugger::Log>(*this, "Log"),
         lua::FuncReference::GetRef<Debugger, &Debugger::IsDebuggerAttached>(*this, "IsDebuggerAttached"),
         lua::FuncReference::GetRef<Debugger, &Debugger::SetLocal>(*this, "SetLocal"),
         lua::FuncReference::GetRef<Debugger, &Debugger::GetLocal>(*this, "GetLocal"),
         lua::FuncReference::GetRef<Debugger, &Debugger::SetUpvalue>(*this, "SetUpvalue"),
         lua::FuncReference::GetRef<Debugger, &Debugger::GetUpvalue>(*this, "GetUpvalue"),
-        } };
+        lua::FuncReference{"ShutdownDebugger", shutdown},
+        };
     L.RegisterGlobalLib(lib, "LuaDebugger");
     if (mainmenu)
         shok::AddGlobalToNotSerialize("LuaDebugger");

@@ -61,12 +61,13 @@ DebuggerOrig dbg{};
 
 //std::unique_ptr<debug_lua::Server> server = nullptr;
 
+int ShutdownDebuggerLua(lua::State L);
 extern "C" {
 	void __declspec(dllexport) __stdcall AddLuaState(lua_State* L) {
 		dbg.Load();
 		if (dbg.AddLuaState)
 			dbg.AddLuaState(L);
-		debugger.OnStateAdded(L, nullptr);
+		debugger.OnStateAdded(L, nullptr, lua::State::CppToCFunction<ShutdownDebuggerLua>);
 	}
 
 	void __declspec(dllexport) __stdcall RemoveLuaState(lua_State* L) {
@@ -118,4 +119,9 @@ void __declspec(dllexport) __stdcall ShutdownDebugger() {
 	debugger.OnShutdown([]() {
 		serv = nullptr;
 		});
+}
+
+int ShutdownDebuggerLua(lua::State L) {
+	ShutdownDebugger();
+	return 0;
 }

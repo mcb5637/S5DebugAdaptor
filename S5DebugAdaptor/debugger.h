@@ -140,7 +140,7 @@ namespace debug_lua {
 		DebugState& GetState(lua_State* l);
 		int GetStateIndex(const DebugState& s);
 		DebugState& GetState(int i);
-		void OnStateAdded(lua_State* l, const char* name);
+		void OnStateAdded(lua_State* l, const char* name, lua::CFunction shutdown);
 		void OnStateClosed(lua_State* l);
 		void OnBreak(lua_State* l);
 		void OnSourceLoaded(lua_State* L, const char* filename);
@@ -175,7 +175,7 @@ namespace debug_lua {
 		void SetHooked(DebugState& s, bool h, bool imm);
 		void WaitForRequest();
 		void TranslateRequest(lua::State L);
-		void InitializeLua(lua::State L, bool mainmenu);
+		void InitializeLua(lua::State L, bool mainmenu, lua::CFunction shutdown);
 		void CheckSourcesLoaded(DebugState& s);
 		void CheckSourcesLoadedRecursive(DebugState& s, int idx, std::set<const void*>& tablesDone);
 		void CheckSourcesLoadedFunc(DebugState& s, int idx);

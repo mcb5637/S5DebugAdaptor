@@ -2,9 +2,9 @@
   "name": "s5luadebug",
   "displayName": "S5LuaDebug",
   "description": "S5 lua debugging",
-  "version": "0.0.1",
+  "version": "1.0.1",
   "engines": {
-    "vscode": "^1.84.0"
+    "vscode": "^1.93.0"
   },
   "categories": [
     "Debuggers"
@@ -102,18 +102,18 @@
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
-    "@types/vscode": "^1.84.0",
-    "@types/mocha": "^10.0.2",
-    "@types/node": "18.x",
-    "@typescript-eslint/eslint-plugin": "^6.7.3",
-    "@typescript-eslint/parser": "^6.7.3",
-    "eslint": "^8.50.0",
-    "glob": "^10.3.3",
-    "mocha": "^10.2.0",
-    "typescript": "^5.2.2",
-    "ts-loader": "^9.4.4",
-    "webpack": "^5.88.2",
+    "@types/vscode": "^1.93.0",
+    "@types/mocha": "^10.0.7",
+    "@types/node": "22.5.4",
+    "@typescript-eslint/eslint-plugin": "^8.5.0",
+    "@typescript-eslint/parser": "^8.5.0",
+    "eslint": "^9.10.0",
+    "glob": "^11.0.0",
+    "mocha": "^10.7.3",
+    "typescript": "^5.6.2",
+    "ts-loader": "^9.5.1",
+    "webpack": "^5.94.0",
     "webpack-cli": "^5.1.4",
-    "@vscode/test-electron": "^2.3.4"
+    "@vscode/test-electron": "^2.4.1"
   }
 }

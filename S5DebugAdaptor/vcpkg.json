@@ -1,10 +1,10 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "s5-debug-adaptor",
-  "version": "0.0.1",
+  "version": "1.0.1",
   "dependencies": [
     "cppdap",
     "uni-algo"
   ],
-  "builtin-baseline": "7e4d2ff73b643ca2c685c6cfe0783a0f62cfb15c"
+  "builtin-baseline": "ee2d2a100103e0f3613c60655dcf15be7d5157b8"
 }

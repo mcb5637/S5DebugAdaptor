@@ -2,6 +2,7 @@
 #include <memory>
 #include <vector>
 #include <string_view>
+#include <string>
 #include "enumflags.h"
 
 // some minimal shok stuff to interface with

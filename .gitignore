@@ -367,4 +367,4 @@ FodyWeavers.xsd
 /extension/dist
 /extension/LICENSE
 /extension/README.md
-/extension/s5luadebug-0.0.1.vsix
+/extension/*.vsix

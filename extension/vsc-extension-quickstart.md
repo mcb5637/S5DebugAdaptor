@@ -48,5 +48,5 @@
 
 
 notes:
-update dependencies: npm update
+update dependencies: npm update, vcpkg x-update-baseline
 package: vsce package

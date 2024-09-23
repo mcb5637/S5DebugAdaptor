@@ -93,9 +93,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 						frame.name += " tail call";
 					}
 					else if (i.Source != nullptr) {
-						dap::Source source;
-						source.path = Dbg.FindSource(l, i.Source);
-						frame.source = source;
+						frame.source = MakeSource(Dbg.FindSource(l, i.Source));
 					}
 
 					frame.line = i.CurrentLine;
@@ -502,7 +500,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 				return c.Get();
 			}
 			catch (const std::invalid_argument&) {
-				return dap::Error("Unknown source");
+				return dap::Error("Invalid exception breakpoint");
 			}
 		});
 
@@ -512,9 +510,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 		std::unique_lock lo{ Dbg.StatesMutex };
 		for (const auto& s : Dbg.GetStates()) {
 			for (const auto& src : s.SourcesLoaded) {
-				dap::Source sr;
-				sr.path = src.External;
-				res.sources.push_back(sr);
+				res.sources.push_back(MakeSource(src.External));
 			}
 		}
 
@@ -531,6 +527,51 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 			if (request.source.has_value() && request.source->path.has_value()) {
 				auto c = LuaExecutionPackagedTask<dap::SourceResponse>{ [this, request]() {
 					std::unique_lock lo{ Dbg.StatesMutex };
+
+					auto read = [](BB::IStream* f) {
+						dap::SourceResponse response;
+
+						dap::string s{};
+						s.resize(f->GetSize());
+						f->Read(s.data(), s.size());
+						if (s.ends_with('\0'))
+							s.resize(s.size() - 2);
+
+						response.content = EnsureUTF8(s);
+						return response;
+					};
+
+					auto file = UTF8ToANSI(*request.source->path);
+
+					if (request.source->adapterData.has_value() && request.source->adapterData->is<dap::string>()) {
+						auto arch = static_cast<std::string_view>(request.source->adapterData->get<dap::string>());
+
+						BB::CBBArchiveFile* a = nullptr;
+						std::unique_ptr<BB::CBBArchiveFile, CppLogic::DestroyCaller<BB::CBBArchiveFile>> arch_unique = nullptr;
+
+						for (auto* f : (*BB::CFileSystemMgr::GlobalObj)->LoadOrder) {
+							if (auto* af = dynamic_cast<BB::CBBArchiveFile*>(f)) {
+								if (af->ArchiveFile.Filename == arch) {
+									a = af;
+									break;
+								}
+							}
+						}
+						if (a == nullptr) {
+							arch_unique = BB::CBBArchiveFile::CreateUnique();
+							arch_unique->OpenArchive(arch.data());
+							a = arch_unique.get();
+						}
+
+						if ((file.starts_with("Data") || file.starts_with("data")) && (file[4] == '\\' || file[4] == '/')) {
+							file = file.substr(5);
+						}
+						auto f = a->OpenFileStreamUnique(file.c_str(), BB::IStream::Flags::DefaultRead);
+
+						return read(f.get());
+					}
+
+
 					auto& stat = Dbg.GetStates();
 					std::string_view bbatoload{};
 					if (stat.size() > 1 && !stat[1].MapFile.empty()) {
@@ -539,21 +580,10 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 					EnsureBbaLoaded load{ bbatoload };
 
 					BB::CFileStreamEx f{};
-					auto file = UTF8ToANSI(*request.source->path);
 					if (!f.OpenFile(file.c_str(), BB::IStream::Flags::DefaultRead))
 						throw std::invalid_argument{""};
 
-					dap::SourceResponse response;
-					
-					dap::string s{};
-					s.resize(f.GetSize());
-					f.Read(s.data(), s.size());
-					f.Close();
-					if (s.ends_with('\0'))
-						s.resize(s.size() - 2);
-
-					response.content = EnsureUTF8(s);
-					return response;
+					return read(&f);
 					} };
 				Dbg.RunInSHoKThread(c);
 				try {
@@ -618,7 +648,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 }
 
 // encoded: lowest->highest bit: 2 state, 18 bits frame, 2 bits scope, 10 bits variable
-constexpr int bitmask(int n) {
+static constexpr int bitmask(int n) {
 	return (1 << n) - 1;
 }
 constexpr int state_bits = 2;
@@ -744,7 +774,7 @@ void debug_lua::Adaptor::OnSourceAdded(DebugState& s, std::string_view f)
 {
 	dap::LoadedSourceEvent ev;
 	ev.reason = "new";
-	ev.source.path = dap::string{ f };
+	ev.source = MakeSource(f);
 	Session->send(ev);
 }
 
@@ -759,4 +789,18 @@ void debug_lua::Adaptor::OnShutdown()
 		Dbg.Command(Debugger::Request::Resume);
 	}
 	ConditionTerminate.notify_one();
+}
+
+dap::Source debug_lua::Adaptor::MakeSource(std::string_view s) const
+{
+	dap::Source r{};
+
+	auto [file, archive] = Debugger::SourceToFileAndArchive(s);
+
+	r.path = dap::string{ file };
+	if (!archive.empty()) {
+		r.adapterData = dap::string{ archive };
+	}
+
+	return r;
 }

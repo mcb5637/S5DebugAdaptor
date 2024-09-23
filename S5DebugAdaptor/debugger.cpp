@@ -133,7 +133,7 @@ void debug_lua::Debugger::OnSourceLoaded(lua_State* L, const char* filename)
     std::unique_lock lo{ StatesMutex };
     auto i = std::find(States.begin(), States.end(), L);
     if (i == States.end())
-        throw std::invalid_argument{ "trying to break a state that does not exist" };
+        throw std::invalid_argument{ "trying to add a source to a state that does not exist" };
     DoAddSource(*i, filename);
 }
 
@@ -175,7 +175,7 @@ void debug_lua::Debugger::RebuildBreakpoints()
 {
     BreakpointLookup.clear();
     for (auto& b : Breakpoints) {
-        auto* s = SearchExternalUnsafe(b.SourceExternal);
+        auto* s = SearchExternalUnsafe(b.SourceExternal, true);
         if (s == nullptr)
             continue;
         for (auto l : b.Lines) {
@@ -316,11 +316,14 @@ debug_lua::Source* debug_lua::Debugger::SearchExternal(std::string_view e)
     std::unique_lock lo{ StatesMutex };
     return SearchExternalUnsafe(e);
 }
-debug_lua::Source* debug_lua::Debugger::SearchExternalUnsafe(std::string_view e)
+debug_lua::Source* debug_lua::Debugger::SearchExternalUnsafe(std::string_view e, bool fileOnly)
 {
     for (DebugState& r : States) {
         for (auto& s : r.SourcesLoaded) {
-            if (una::caseless::compare_utf8(s.External, e) == 0)
+            std::string_view se = s.External;
+            if (fileOnly)
+                se = SourceToFileAndArchive(se).first;
+            if (una::caseless::compare_utf8(se, e) == 0)
                 return &s;
         }
     }

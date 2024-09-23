@@ -121,6 +121,10 @@ void __declspec(dllexport) __stdcall ShutdownDebugger() {
 		});
 }
 
+bool __declspec(dllexport) __stdcall DebuggerSupportsSourceArchive() {
+	return true;
+}
+
 int ShutdownDebuggerLua(lua::State L) {
 	ShutdownDebugger();
 	return 0;

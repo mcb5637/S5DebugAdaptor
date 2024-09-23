@@ -165,9 +165,18 @@ namespace debug_lua {
 		Source* SearchInternal(std::string_view i);
 		Source* SearchExternal(std::string_view e);
 		std::string FindSource(const DebugState& s, std::string_view i);
+		constexpr static std::pair<std::string_view, std::string_view> SourceToFileAndArchive(std::string_view s) {
+			size_t atpos = s.find('@');
+			if (atpos != std::string::npos) {
+				return { s.substr(0, atpos), s.substr(atpos + 1) };
+			}
+			else {
+				return { s, "" };
+			}
+		}
 
 	private:
-		Source* SearchExternalUnsafe(std::string_view e);
+		Source* SearchExternalUnsafe(std::string_view e, bool fileOnly = false);
 		bool IsIdentifier(std::string_view s);
 		void CheckRun();
 		void RunCallback();

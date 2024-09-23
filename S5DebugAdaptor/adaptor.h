@@ -37,5 +37,7 @@ namespace debug_lua {
 		virtual void OnLog(std::string_view s) override;
 		virtual void OnSourceAdded(DebugState& s, std::string_view f) override;
 		virtual void OnShutdown() override;
+	private:
+		dap::Source MakeSource(std::string_view s) const;
 	};
 }

@@ -5,7 +5,7 @@
 #include <future>
 #include <map>
 
-#include "luapp/luapp50.h"
+#include <luapp/luapp50.h>
 #include "enumflags.h"
 
 namespace debug_lua {

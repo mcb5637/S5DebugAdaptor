@@ -60,8 +60,8 @@ int __declspec(naked) __cdecl pcall_recovered(lua_State* L, int nargs, int nresu
 	};
 }
 int DoubleErrorFunc(lua::State L) {
-	L.PushValue(lua::State::Upvalueindex(1));
-	L.PushValue(lua::State::Upvalueindex(2));
+	L.PushValue(lua::State::UpvalueIndex(1));
+	L.PushValue(lua::State::UpvalueIndex(2));
 	L.PushValue(1);
 	L.PCall(1, 1);
 	L.PCall(1, 1);

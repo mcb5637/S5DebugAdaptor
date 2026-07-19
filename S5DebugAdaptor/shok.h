@@ -363,7 +363,7 @@ namespace BB {
 		static inline constexpr int vtp = 0x77FABC;
 
 		DirectoryEntry* SearchByHash(const char* filename);
-		DirectoryEntry* GetByOffset(size_t offset) const;
+		[[nodiscard]] DirectoryEntry* GetByOffset(size_t offset) const;
 
 		static inline CBBArchiveFile* (__stdcall* const Create)() = reinterpret_cast<CBBArchiveFile * (__stdcall*)()>(0x551701);
 		static std::unique_ptr<CBBArchiveFile, CppLogic::DestroyCaller<CBBArchiveFile>> CreateUnique();

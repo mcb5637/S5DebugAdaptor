@@ -19,7 +19,12 @@ add_library(LuaDebugger SHARED
         S5DebugAdaptor/shok.cpp
         S5DebugAdaptor/utility.cpp
         S5DebugAdaptor/winhelpers.cpp
-        S5DebugAdaptor/luapp/luapp50.cpp
+        S5DebugAdaptor/luapp/src50/luapp50_d.cpp
         S5DebugAdaptor/Resource.rc
+)
+target_include_directories(LuaDebugger
+        PRIVATE
+        S5DebugAdaptor/luapp/include
+        S5DebugAdaptor/lua50
 )
 target_link_libraries(LuaDebugger PRIVATE uni-algo::uni-algo cppdap::cppdap "${CMAKE_CURRENT_SOURCE_DIR}/S5DebugAdaptor/lua50/S5Lua5.lib")

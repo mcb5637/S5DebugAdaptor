@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          submodules: true
+          submodules: recursive
 
       - name: Setup Cpp
         uses: aminya/setup-cpp@v1

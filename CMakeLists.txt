@@ -13,6 +13,16 @@ if (CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
     add_compile_definitions($<$<COMPILE_LANGUAGE:CXX>:USE_CLANG_NAKED>)
 endif ()
 
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    message(FATAL_ERROR "needs windows")
+endif()
+if (NOT CMAKE_SIZEOF_VOID_P EQUAL "4")
+    message(FATAL_ERROR "needs 32 bit")
+endif()
+if (NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "X86")
+    message(FATAL_ERROR "needs x86")
+endif()
+
 file(DOWNLOAD "https://github.com/mcb5637/Luapp/raw/refs/heads/master/.clang-format"
         "${CMAKE_SOURCE_DIR}/.clang-format"
         TLS_VERIFY ON

@@ -372,3 +372,4 @@ FodyWeavers.xsd
 /conan_provider.cmake
 
 .idea/
+/.clang-format

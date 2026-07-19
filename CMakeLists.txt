@@ -10,7 +10,13 @@ find_package(cppdap REQUIRED)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
     add_compile_options(-Wno-invalid-offsetof -Wno-microsoft-cast)
+    add_compile_definitions($<$<COMPILE_LANGUAGE:CXX>:USE_CLANG_NAKED>)
 endif ()
+
+file(DOWNLOAD "https://github.com/mcb5637/Luapp/raw/refs/heads/master/.clang-format"
+        "${CMAKE_SOURCE_DIR}/.clang-format"
+        TLS_VERIFY ON
+)
 
 add_library(LuaDebugger SHARED
         S5DebugAdaptor/adaptor.cpp

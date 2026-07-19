@@ -8,7 +8,9 @@ set(CMAKE_CXX_STANDARD 20)
 find_package(uni-algo CONFIG REQUIRED)
 find_package(cppdap REQUIRED)
 
-add_compile_options(-Wno-invalid-offsetof -Wno-microsoft-cast)
+if (CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
+    add_compile_options(-Wno-invalid-offsetof -Wno-microsoft-cast)
+endif ()
 
 add_library(LuaDebugger SHARED
         S5DebugAdaptor/adaptor.cpp

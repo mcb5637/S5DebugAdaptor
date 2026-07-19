@@ -40,8 +40,8 @@ jobs:
             ~/.conan2/p
 
       - name: setup lua
+        working-directory: S5DebugAdaptor/luapp
         run:
-          cd S5DebugAdaptor/luapp
           ./setup_lua.bat
 
       - name: Get dependency provider

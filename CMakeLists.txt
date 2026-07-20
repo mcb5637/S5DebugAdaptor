@@ -14,13 +14,13 @@ if (CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
 endif ()
 
 if (NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    message(FATAL_ERROR "needs windows")
+    message(FATAL_ERROR "needs windows, is ${CMAKE_SYSTEM_NAME}")
 endif()
 if (NOT CMAKE_SIZEOF_VOID_P EQUAL "4")
-    message(FATAL_ERROR "needs 32 bit")
+    message(FATAL_ERROR "needs 32 bit, is ${CMAKE_SIZEOF_VOID_P}")
 endif()
 if (NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "X86")
-    message(FATAL_ERROR "needs x86")
+    message(FATAL_ERROR "needs x86, is ${CMAKE_SYSTEM_PROCESSOR}")
 endif()
 
 file(DOWNLOAD "https://github.com/mcb5637/Luapp/raw/refs/heads/master/.clang-format"

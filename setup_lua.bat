@@ -11,5 +11,5 @@ if exist "%out%\" (
     del %temparch%
     move /Y %out%\include\* %out%
     del %out%\include\
-    move /Y \s5_lua\S5Lua5.lib %out%\S5Lua5.lib
+    copy /Y .\s5_lua\S5Lua5.lib .\S5DebugAdaptor\luapp\lua\lua50\
 )

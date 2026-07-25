@@ -59,7 +59,7 @@ export class S5DebugAdapterDescriptorFactory implements vscode.DebugAdapterDescr
   }
 
   private setDebuggingStatus(status: boolean) {
-	this.isDebuggingActive = status
+	  this.isDebuggingActive = status
   }
 
   private async startDebugging() {
@@ -72,7 +72,7 @@ export class S5DebugAdapterDescriptorFactory implements vscode.DebugAdapterDescr
         this.setDebuggingStatus(true)
         return;
       }
-      setTimeout(this.startDebugging, 2000);
+      setTimeout(() => {this.startDebugging()}, 2000);
     }
   }
 

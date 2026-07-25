@@ -2,6 +2,7 @@
   "name": "S5LuaDebuggerAdaptor",
   "displayName": "S5 LuaDebugger Adaptor",
   "version": "0.0.1",
+  "type": "module",
   "engines": {
     "vscode": "^1.80.0"
   },
@@ -18,67 +19,7 @@
     "debuggers": [
       {
         "type": "s5lua",
-        "label": "S5 Lua Debug",
-        "configurationAttributes": {
-          "launch": {
-            "required": [
-              "program"
-            ],
-            "properties": {
-              "program": {
-                "type": "string",
-                "description": "absolute path to the SHoK executable"
-              },
-              "args": {
-                "type": "array",
-                "description": "command line parameters",
-                "default": [
-                  "-extra2"
-                ]
-              },
-              "attachDelay": {
-                "type": "number",
-                "description": "startup delay",
-                "default": 1
-              }
-            }
-          },
-          "attach": {}
-        },
-        "initialConfigurations": [
-          {
-            "type": "s5lua",
-            "request": "launch",
-            "program": "",
-            "args": [
-              "-extra2"
-            ],
-            "attachDelay": 1
-          }
-        ],
-        "configurationSnippets": [
-          {
-            "label": "S5 Lua Debug: Launch",
-            "description": "A new configuration for launching S5",
-            "body": {
-              "type": "s5lua",
-              "request": "launch",
-              "program": "",
-              "args": [
-                "-extra2"
-              ],
-              "attachDelay": 1
-            }
-          },
-          {
-            "label": "S5 Lua Debug: Attach",
-            "description": "A new configuration for attaching to S5",
-            "body": {
-              "type": "s5lua",
-              "request": "attach"
-            }
-          }
-        ]
+        "label": "S5 Lua Debug"
       }
     ],
     "viewsContainers": {
@@ -108,9 +49,9 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "precompile":"node utils/cleanOutput.js",
+    "precompile": "node utils/cleanOutput.cjs",
     "compile": "tsc -p ./",
-    "postcompile":"node utils/copyPublicToOutput.js",
+    "postcompile": "node utils/copyPublicToOutput.cjs",
     "watch": "tsc -watch -p ./"
   },
   "devDependencies": {

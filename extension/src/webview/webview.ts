@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { S5DebugAdapterDescriptorFactory } from '../debugadaptor/debugadaptor';
+import { S5DebugAdapterDescriptorFactory } from '../debugadaptor/debugadaptor.ts';
 
 interface messageContent {
     type: string,
@@ -14,7 +14,7 @@ export class MySidebarProvider implements vscode.WebviewViewProvider {
     constructor(private readonly extensionContext: vscode.ExtensionContext,) {
         let checkboxChecked: boolean = this.extensionContext.globalState.get(this.persistentStorageKeyName)!;
         this.isCheckboxChecked = checkboxChecked
-        this.S5DebugAdapterDescriptorFactoryDisposable = new S5DebugAdapterDescriptorFactory()
+        this.S5DebugAdapterDescriptorFactoryDisposable = new S5DebugAdapterDescriptorFactory(extensionContext)
         this.registerdDebugAdapterDescriptorFactory = vscode.debug.registerDebugAdapterDescriptorFactory('s5lua', this.S5DebugAdapterDescriptorFactoryDisposable)
         this.extensionContext.subscriptions.push(this.registerdDebugAdapterDescriptorFactory);
     }

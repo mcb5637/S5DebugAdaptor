@@ -33,39 +33,43 @@ export class S5DebugAdapterDescriptorFactory implements vscode.DebugAdapterDescr
     );
     extensionContext.subscriptions.push(this.debugAdaptorTrackerDisposable);
     extensionContext.subscriptions.push(
-      vscode.debug.onDidTerminateDebugSession((session) => {
-        if (this.isDebuggingActive && session.name === this.debugConfiguration.name) {
-          this.setDebuggingStatus(false);
-          if (this.didClickOnDisconnectInVSCode) {
-          } else if (this.didDebuggerTerminateNormaly) {
-            this.QueuenextGameSearchIfAutoQueueOn();
-          } else if (this.didApplicationCrash) {
-            this.QueuenextGameSearchIfAutoQueueOn();
-          } else {
-            throw new Error(
-              "Es ist nicht gecrasht, kein normaler Abbruch, und Debugger wurde nicht disconnectet?",
-            );
-          }
-          this.resetUpExitVariables();
-          return;
-        }
-      }),
+      vscode.debug.onDidTerminateDebugSession(this.terminateDebugSessionCallback),
     );
     this.customDisconnect = vscode.commands.registerCommand(
       "workbench.action.debug.disconnect",
-      async () => {
-        const activeSession = vscode.debug.activeDebugSession;
-        if (activeSession && activeSession.type === "s5lua") {
-          this.didClickOnDisconnectInVSCode = true;
-          await vscode.debug.stopDebugging(activeSession);
-        } else {
-          if (activeSession) {
-            await vscode.debug.stopDebugging(activeSession);
-          }
-        }
-      },
+      this.workbenchActionDebugDisconnectRewrite,
     );
     extensionContext.subscriptions.push(this.customDisconnect);
+  }
+
+  private terminateDebugSessionCallback(session: vscode.DebugSession) {
+    if (this.isDebuggingActive && session.name === this.debugConfiguration.name) {
+      this.setDebuggingStatus(false);
+      if (this.didClickOnDisconnectInVSCode) {
+      } else if (this.didDebuggerTerminateNormaly) {
+        this.QueuenextGameSearchIfAutoQueueOn();
+      } else if (this.didApplicationCrash) {
+        this.QueuenextGameSearchIfAutoQueueOn();
+      } else {
+        throw new Error(
+          "Es ist nicht gecrasht, kein normaler Abbruch, und Debugger wurde nicht disconnectet?",
+        );
+      }
+      this.resetUpExitVariables();
+      return;
+    }
+  }
+
+  private async workbenchActionDebugDisconnectRewrite() {
+    const activeSession = vscode.debug.activeDebugSession;
+    if (activeSession && activeSession.type === "s5lua") {
+      this.didClickOnDisconnectInVSCode = true;
+      await vscode.debug.stopDebugging(activeSession);
+    } else {
+      if (activeSession) {
+        await vscode.debug.stopDebugging(activeSession);
+      }
+    }
   }
 
   public async createDebugAdapterDescriptor(

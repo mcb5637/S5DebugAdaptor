@@ -404,6 +404,9 @@ namespace BB {
 		static inline const char* (__cdecl* const PathGetExtension)(const char* path) = reinterpret_cast<const char* (__cdecl*)(const char*)>(0x40BAB3);
 
 		static bool DoesFileExist(const char* name);
+
+		using OpenFileStreamWithSourceT = std::pair<std::string_view, std::unique_ptr<BB::IStream>> (BB::CFileSystemMgr::*)(const char* path, BB::IStream::Flags f, bool openArchive);
+		static OpenFileStreamWithSourceT OpenFileStreamWithSource;
 	};
 	//constexpr int i = offsetof(CFileSystemMgr, Override) / 4;
 

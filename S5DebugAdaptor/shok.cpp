@@ -183,6 +183,9 @@ bool BB::CFileSystemMgr::DoesFileExist(const char* name)
 	(*GlobalObj)->GetFileInfo(&i, name, 0);
 	return i.Found && !i.IsDirectory;
 }
+
+BB::CFileSystemMgr::OpenFileStreamWithSourceT BB::CFileSystemMgr::OpenFileStreamWithSource = nullptr;
+
 static inline void(__thiscall* const str_ctor)(shok::String* th, const char* s) = reinterpret_cast<void(__thiscall*)(shok::String*, const char*)>(0x4018C6);
 shok::String::String(const char* s)
 {

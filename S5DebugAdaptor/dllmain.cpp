@@ -1,13 +1,12 @@
-// dllmain.cpp : Defines the entry point for the DLL application.
 #include "luapp/luapp50.h"
 #include "debugger.h"
 #include "adaptor.h"
 #include "server.h"
 #include "framework.h"
+#include "shok.h"
 
-debug_lua::Debugger debugger{};
-//std::unique_ptr<debug_lua::Adaptor> adap = nullptr;
-std::unique_ptr<debug_lua::Server> serv = nullptr;
+static debug_lua::Debugger debugger{};
+static std::unique_ptr<debug_lua::Server> serv = nullptr;
 
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
@@ -17,7 +16,6 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
-		//adap = std::make_unique<debug_lua::Adaptor>(debugger);
 		serv = std::make_unique<debug_lua::Server>(debugger);
 		break;
     case DLL_THREAD_ATTACH:
@@ -58,11 +56,9 @@ struct DebuggerOrig {
 	}
 };
 
-DebuggerOrig dbg{};
+static DebuggerOrig dbg{};
 
-//std::unique_ptr<debug_lua::Server> server = nullptr;
-
-int ShutdownDebuggerLua(lua::State L);
+static int ShutdownDebuggerLua(lua::State L);
 extern "C" {
 	void __declspec(dllexport) __stdcall AddLuaState(lua_State* L) {
 		dbg.Load();
@@ -128,6 +124,10 @@ bool __declspec(dllexport) __stdcall DebuggerSupportsSourceArchive() {
 
 void __declspec(dllexport) __stdcall SetDisableExecuteLua(bool disable) {
 	debugger.DisableExecuteLua = disable;
+}
+
+void __declspec(dllexport) __stdcall SetGetSourceFromArchive(BB::CFileSystemMgr::OpenFileStreamWithSourceT f) {
+	BB::CFileSystemMgr::OpenFileStreamWithSource = f;
 }
 
 int ShutdownDebuggerLua(lua::State L) {

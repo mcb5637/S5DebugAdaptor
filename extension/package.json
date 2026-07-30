@@ -27,7 +27,7 @@
         {
           "id": "S5LuaDebuggerSideBar",
           "title": "S5LuaDebugger Adaptor",
-          "icon": "media/icon.svg"
+          "icon": "out/media/icon.svg"
         }
       ]
     },

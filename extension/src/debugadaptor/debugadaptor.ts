@@ -23,6 +23,8 @@ export class S5DebugAdapterDescriptorFactory implements vscode.DebugAdapterDescr
       type: "s5lua",
       request: "attach",
       name: "Webview Debug Session",
+      port: 19021,
+      timeout: 20000
     };
 
     this.parentWebview = parent;
@@ -33,7 +35,7 @@ export class S5DebugAdapterDescriptorFactory implements vscode.DebugAdapterDescr
     );
     extensionContext.subscriptions.push(this.debugAdaptorTrackerDisposable);
     extensionContext.subscriptions.push(
-      vscode.debug.onDidTerminateDebugSession(this.terminateDebugSessionCallback),
+      vscode.debug.onDidTerminateDebugSession((session) => this.terminateDebugSessionCallback(session)),
     );
     this.customDisconnect = vscode.commands.registerCommand(
       "workbench.action.debug.disconnect",
@@ -42,7 +44,7 @@ export class S5DebugAdapterDescriptorFactory implements vscode.DebugAdapterDescr
     extensionContext.subscriptions.push(this.customDisconnect);
   }
 
-  private terminateDebugSessionCallback(session: vscode.DebugSession) {
+  private terminateDebugSessionCallback = (session: vscode.DebugSession) => {
     if (this.isDebuggingActive && session.name === this.debugConfiguration.name) {
       this.setDebuggingStatus(false);
       if (this.didClickOnDisconnectInVSCode) {
@@ -108,7 +110,7 @@ export class S5DebugAdapterDescriptorFactory implements vscode.DebugAdapterDescr
   public searchForGame() {
     this.searchIntervall = setTimeout(() => {
       this.startDebugging();
-    }, 2000);
+    }, 1000);
   }
 
   public stopSearchForGame() {

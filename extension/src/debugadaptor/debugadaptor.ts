@@ -39,7 +39,7 @@ export class S5DebugAdapterDescriptorFactory implements vscode.DebugAdapterDescr
     );
     this.customDisconnect = vscode.commands.registerCommand(
       "workbench.action.debug.disconnect",
-      this.workbenchActionDebugDisconnectRewrite,
+      () => {this.workbenchActionDebugDisconnectRewrite()},
     );
     extensionContext.subscriptions.push(this.customDisconnect);
   }

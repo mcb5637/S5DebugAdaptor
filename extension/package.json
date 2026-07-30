@@ -45,6 +45,13 @@
         "command": "activateS5LuaDebuggerAdaptor",
         "title": "Activate S5LuaDebuggerAdaptor"
       }
+    ],
+    "initialConfigurations": [
+      {
+        "type": "s5lua",
+        "request": "attach",
+        "name": "Launch Program"
+      }
     ]
   },
   "scripts": {

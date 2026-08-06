@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { checkProcess } from "./findprocess.ts";
+import { checkProcessAndPort } from "./findprocess.ts";
 import { S5DebugAdapterDescriptorTrackerFactory } from "./debugadaptortracker.ts";
 import { MySidebarProvider } from "../webview/webview.ts";
 
@@ -24,7 +24,8 @@ export class S5DebugAdapterDescriptorFactory implements vscode.DebugAdapterDescr
       request: "attach",
       name: "Webview Debug Session",
       port: 19021,
-      timeout: 20000
+      timeout: 20000,
+      restart: true,
     };
 
     this.parentWebview = parent;
@@ -35,11 +36,15 @@ export class S5DebugAdapterDescriptorFactory implements vscode.DebugAdapterDescr
     );
     extensionContext.subscriptions.push(this.debugAdaptorTrackerDisposable);
     extensionContext.subscriptions.push(
-      vscode.debug.onDidTerminateDebugSession((session) => this.terminateDebugSessionCallback(session)),
+      vscode.debug.onDidTerminateDebugSession((session) =>
+        this.terminateDebugSessionCallback(session),
+      ),
     );
     this.customDisconnect = vscode.commands.registerCommand(
       "workbench.action.debug.disconnect",
-      () => {this.workbenchActionDebugDisconnectRewrite()},
+      () => {
+        this.workbenchActionDebugDisconnectRewrite();
+      },
     );
     extensionContext.subscriptions.push(this.customDisconnect);
   }
@@ -60,7 +65,7 @@ export class S5DebugAdapterDescriptorFactory implements vscode.DebugAdapterDescr
       this.resetUpExitVariables();
       return;
     }
-  }
+  };
 
   private async workbenchActionDebugDisconnectRewrite() {
     const activeSession = vscode.debug.activeDebugSession;
@@ -93,7 +98,7 @@ export class S5DebugAdapterDescriptorFactory implements vscode.DebugAdapterDescr
 
   private async startDebugging() {
     console.log("Searching...");
-    if (!this.isDebuggingActive && (await checkProcess("settlershok.exe"))) {
+    if (!this.isDebuggingActive && (await checkProcessAndPort("settlershok.exe",this.debugConfiguration.port))) {
       const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
       const didStart = await vscode.debug.startDebugging(workspaceFolder, this.debugConfiguration);
       if (didStart) {

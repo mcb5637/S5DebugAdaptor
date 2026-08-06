@@ -44,7 +44,7 @@ export class MySidebarProvider implements vscode.WebviewViewProvider {
         command: "setCheckboxToTrue",
         value: this.isCheckboxChecked,
       });
-      this.activateOrStopGameSearch(this.isCheckboxChecked);
+      //this.activateOrStopGameSearch(this.isCheckboxChecked);
     }
     webviewView.webview.onDidReceiveMessage(async (message: messageContent) => {
       switch (message.type) {

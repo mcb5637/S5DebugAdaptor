@@ -5,3 +5,7 @@ src/**
 .yarnrc
 vscode-extension-iml
 .tsbuildinfo
+utils/**
+tsconfig.json
+tsconfig.base.json
+tsconfig.test.json

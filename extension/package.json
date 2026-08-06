@@ -2,9 +2,16 @@
   "name": "S5LuaDebuggerAdaptor",
   "displayName": "S5 LuaDebugger Adaptor",
   "version": "0.0.1",
+  "publisher":"mcbANDschmeling65",
+  "description": "The extension allows debugging S5 maps during runtime.",
+  "categories": ["Other","Debuggers"],
   "type": "module",
   "engines": {
-    "vscode": "^1.80.0"
+    "vscode": "^1.125.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mcb5637/S5DebugAdaptor"
   },
   "main": "./out/extension.js",
   "activationEvents": [
@@ -55,15 +62,20 @@
     ]
   },
   "scripts": {
+    "startpackagepipeline":"vsce package",
     "vscode:prepublish": "npm run compile",
     "precompile": "node utils/cleanOutput.cjs",
-    "compile": "tsc -p ./",
+    "precompilefortest": "node utils/cleanOutput.cjs",
+    "compile": "tsc -p tsconfig.json",
+    "compilefortest":"tsc -p tsconfig.test.json",
     "postcompile": "node utils/copyPublicToOutput.cjs",
+    "postcompilefortest":"node utils/copyPublicToOutput.cjs",
     "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
     "@types/vscode": "^1.125.0",
+    "@vscode/vsce": "^3.9.2",
     "typescript": "^7.0.2"
   }
 }

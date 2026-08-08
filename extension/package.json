@@ -1,22 +1,23 @@
 {
-  "name": "s5luadebug",
-  "displayName": "S5LuaDebug",
-  "description": "S5 lua debugging",
-  "version": "1.0.1",
+  "name": "S5LuaDebuggerAdaptor",
+  "displayName": "S5 LuaDebugger Adaptor",
+  "version": "1.0.0",
+  "publisher":"mcbANDschmeling65",
+  "license": "MIT",
+  "description": "The extension allows debugging S5 maps during runtime.",
+  "categories": ["Other","Debuggers"],
+  "type": "module",
   "engines": {
-    "vscode": "^1.110.0"
+    "vscode": "^1.125.0"
   },
-  "categories": [
-    "Debuggers"
-  ],
-  "activationEvents": [
-    "onDebug"
-  ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/mcb5637/S5DebugAdaptor.git"
+    "url": "https://github.com/mcb5637/S5DebugAdaptor"
   },
-  "main": "./dist/extension.js",
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "contributes": {
     "breakpoints": [
       {
@@ -26,92 +27,57 @@
     "debuggers": [
       {
         "type": "s5lua",
-        "label": "S5 Lua Debug",
-        "configurationAttributes": {
-          "launch": {
-            "required": [
-              "program"
-            ],
-            "properties": {
-              "program": {
-                "type": "string",
-                "description": "absolute path to the SHoK executable"
-              },
-              "args": {
-                "type": "array",
-                "description": "command line parameters",
-                "default": [
-                  "-extra2"
-                ]
-              },
-              "attachDelay": {
-                "type": "number",
-                "description": "startup delay",
-                "default": 1
-              }
-            }
-          },
-          "attach": {}
-        },
-        "initialConfigurations": [
-          {
-            "type": "s5lua",
-            "request": "launch",
-            "program": "",
-            "args": [
-              "-extra2"
-            ],
-            "attachDelay": 1
-          }
-        ],
-        "configurationSnippets": [
-          {
-            "label": "S5 Lua Debug: Launch",
-            "description": "A new configuration for launching S5",
-            "body": {
-              "type": "s5lua",
-              "request": "launch",
-              "program": "",
-              "args": [
-                "-extra2"
-              ],
-              "attachDelay": 1
-            }
-          },
-          {
-            "label": "S5 Lua Debug: Attach",
-            "description": "A new configuration for attaching to S5",
-            "body": {
-              "type": "s5lua",
-              "request": "attach"
-            }
-          }
-        ]
+        "label": "S5 Lua Debug"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "S5LuaDebuggerSideBar",
+          "title": "S5LuaDebugger Adaptor",
+          "icon": "out/media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "S5LuaDebuggerSideBar": [
+        {
+          "type": "webview",
+          "id": "S5LuaDebuggerAdaptor-toggle-view",
+          "name": "Einstellungen"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "activateS5LuaDebuggerAdaptor",
+        "title": "Activate S5LuaDebuggerAdaptor"
+      }
+    ],
+    "initialConfigurations": [
+      {
+        "type": "s5lua",
+        "request": "attach",
+        "name": "Launch Program"
       }
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run package & cp ../README.md ./ & cp ../LICENSE ./",
-    "compile": "webpack",
-    "watch": "webpack --watch",
-    "package": "webpack --mode production --devtool hidden-source-map",
-    "compile-tests": "tsc -p . --outDir out",
-    "watch-tests": "tsc -p . -w --outDir out",
-    "pretest": "npm run compile-tests && npm run compile && npm run lint",
-    "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
+    "prestartpackagepipeline":"npm install",
+    "startpackagepipeline":"vsce package --skip-license",
+    "vscode:prepublish": "npm run compile",
+    "precompile": "node utils/cleanOutput.cjs",
+    "precompilefortest": "node utils/cleanOutput.cjs",
+    "compile": "tsc -p tsconfig.json",
+    "compilefortest":"tsc -p tsconfig.test.json",
+    "postcompile": "node utils/copyPublicToOutput.cjs",
+    "postcompilefortest":"node utils/copyPublicToOutput.cjs",
+    "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
-    "@types/vscode": "^1.110.0",
-    "@types/node": "^25.5.0",
-    "@typescript-eslint/eslint-plugin": "^8.57.1",
-    "@typescript-eslint/parser": "^8.57.1",
-    "eslint": "^10.0.3",
-    "glob": "^13.0.6",
-    "typescript": "^5.6.2",
-    "ts-loader": "^9.5.1",
-    "webpack": "^5.105.4",
-    "webpack-cli": "^7.0.2",
-    "@vscode/test-electron": "^2.4.1"
+    "@types/node": "^26.1.1",
+    "@types/vscode": "^1.125.0",
+    "@vscode/vsce": "^3.9.2",
+    "typescript": "^7.0.2"
   }
 }

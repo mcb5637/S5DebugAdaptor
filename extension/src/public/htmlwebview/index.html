@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        font-family: var(--vscode-font-family);
+        color: var(--vscode-foreground);
+        padding: 10px;
+      }
+      .switch {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="switch">
+      <input type="checkbox" id="toggle" />
+      <label for="toggle">Spiel automatisch suchen</label>
+    </div>
+
+    <script>
+      const vscode = acquireVsCodeApi();
+      vscode.getState();
+      const toggle = document.getElementById("toggle");
+      toggle.addEventListener("change", () => {
+        vscode.postMessage({
+          type: "toggleChanged",
+          value: toggle.checked,
+        });
+      });
+      window.addEventListener("message", (event) => {
+        const message = event.data;
+        switch (message.command) {
+          case "setCheckboxToTrue":
+            document.getElementById("toggle").checked = message.value;
+            break;      }
+      });
+    </script>
+  </body>
+</html>

@@ -53,3 +53,27 @@ jobs:
       - name: Build
         run: |
           cmake --build ./build --parallel 4
+  
+  buildExtension:
+    name: Build VSCode Extension
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Repository
+      - uses: actions/checkout@v6
+
+      - name: Install NodeJS
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '>=v21.21.1'
+      
+      - name: Build
+        run: |
+          cd extension
+          npm run startpackagepipeline
+
+      - uses: actions/upload-artifact@v4
+        with:
+          #TODO: Get Version by something, as long as no update, the version can stay
+          path: ./extension/S5LuaDebuggerAdaptor-1.0.0.vsix
+          name: "${{ matrix.artifact }}"
+          overwrite: true

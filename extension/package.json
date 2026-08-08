@@ -3,7 +3,7 @@
   "displayName": "S5 LuaDebugger Adaptor",
   "version": "1.0.0",
   "publisher":"mcbANDschmeling65",
-  "license": "SEE LICENSE IN LICENSE-FILE IN ROOT DIRECTORY",
+  "license": "MIT",
   "description": "The extension allows debugging S5 maps during runtime.",
   "categories": ["Other","Debuggers"],
   "type": "module",
@@ -64,7 +64,7 @@
   },
   "scripts": {
     "prestartpackagepipeline":"npm install",
-    "startpackagepipeline":"vsce package",
+    "startpackagepipeline":"vsce package --skip-license",
     "vscode:prepublish": "npm run compile",
     "precompile": "node utils/cleanOutput.cjs",
     "precompilefortest": "node utils/cleanOutput.cjs",

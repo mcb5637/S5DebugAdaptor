@@ -365,8 +365,6 @@ MigrationBackup/
 FodyWeavers.xsd
 /S5DebugAdaptor/lua50
 /extension/dist
-/extension/LICENSE
-/extension/README.md
 /extension/*.vsix
 /CMakeUserPresets.json
 /conan_provider.cmake

@@ -376,13 +376,13 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 					lvl = 0;
 					L = lua::State{Dbg.GetStates().back().L};
 				}
-				
+
 				dap::EvaluateResponse r{};
 				int t = L.GetTop();
 
 				int n = Dbg.EvaluateInContext(request.expression, L, lvl);
 				r.result = Debugger::OutputString(L, n);
-				
+
 				L.SetTop(t);
 				return r;
 				} };
@@ -440,7 +440,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 		return c.Get();
 		});
 
-	Session->registerHandler([&](const dap::SetBreakpointsRequest& request) 
+	Session->registerHandler([&](const dap::SetBreakpointsRequest& request)
 		-> dap::ResponseOrError<dap::SetBreakpointsResponse> {
 		auto c = LuaExecutionPackagedTask<dap::SetBreakpointsResponse>{ [this, request]() {
 				if (!request.source.path.has_value())
@@ -450,7 +450,7 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 				dap::SetBreakpointsResponse r;
 				const dap::string& p = *request.source.path;
 				auto it = std::find_if(Dbg.Breakpoints.begin(), Dbg.Breakpoints.end(), [p](const BreakpointFile& f) {
-					return una::caseless::compare_utf8(p, f.SourceExternal) == 0; 
+					return una::caseless::compare_utf8(p, f.SourceExternal) == 0;
 					});
 				BreakpointFile* f;
 				if (it == Dbg.Breakpoints.end()) {
@@ -551,6 +551,13 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 					if (request.source->adapterData.has_value() && request.source->adapterData->is<dap::string>()) {
 						auto arch = static_cast<std::string_view>(request.source->adapterData->get<dap::string>());
 
+						if (BB::CFileSystemMgr::OpenFileStreamWithSource != nullptr) {
+							auto form = std::format("{}@{}", file, arch);
+							auto [_, s] = std::invoke(BB::CFileSystemMgr::OpenFileStreamWithSource, *BB::CFileSystemMgr::GlobalObj, form.c_str(),
+													  BB::IStream::Flags::DefaultRead, true);
+
+							return read(s.get());
+						}
 						BB::CBBArchiveFile* a = nullptr;
 						std::unique_ptr<BB::CBBArchiveFile, CppLogic::DestroyCaller<BB::CBBArchiveFile>> arch_unique = nullptr;
 
@@ -649,7 +656,15 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 		});
 
 	Dbg.Handler = this;
-	Session->bind(socket);
+	Session->bind(socket, [&]() {
+		{
+			std::lock_guard<std::mutex> lock(MutexTerminate);
+			TerminateDebugger = true;
+			Dbg.Handler = nullptr;
+			Dbg.Command(Debugger::Request::Resume);
+		}
+		ConditionTerminate.notify_one();
+	});
 }
 
 // encoded: lowest->highest bit: 2 state, 18 bits frame, 2 bits scope, 10 bits variable

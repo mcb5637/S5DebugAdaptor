@@ -19,7 +19,7 @@ LRESULT __stdcall debug_lua::Hooks::WinProcHook(HWND wnd, UINT msg, WPARAM w, LP
 		RunCallback();
 	return 0;
 }
-void __attribute((naked)) debug_lua::Hooks::WinProcASM() {
+void NAKED_DEF debug_lua::Hooks::WinProcASM() {
 	__asm {
 		push[ebp + 0x14];
 		push[ebp + 0x10];
@@ -47,7 +47,7 @@ void __attribute((naked)) debug_lua::Hooks::WinProcASM() {
 }
 
 int pcall_jumpback = 0;
-int __declspec(naked) __cdecl pcall_recovered(lua_State* L, int nargs, int nresults, int errfunc) {
+int NAKED __cdecl pcall_recovered(lua_State* L, int nargs, int nresults, int errfunc) {
 	__asm {
 		mov eax, [esp + 0x10];
 		sub esp, 8;
@@ -60,8 +60,8 @@ int __declspec(naked) __cdecl pcall_recovered(lua_State* L, int nargs, int nresu
 	};
 }
 int DoubleErrorFunc(lua::State L) {
-	L.PushValue(lua::State::Upvalueindex(1));
-	L.PushValue(lua::State::Upvalueindex(2));
+	L.PushValue(lua::State::UpvalueIndex(1));
+	L.PushValue(lua::State::UpvalueIndex(2));
 	L.PushValue(1);
 	L.PCall(1, 1);
 	L.PCall(1, 1);
@@ -102,7 +102,7 @@ int __cdecl debug_lua::Hooks::PCallOverride(lua_State* l, int nargs, int nresult
 }
 
 int load_jumpback = 0;
-int __declspec(naked) __cdecl load_recovered(lua_State* L, void* reader, void* data, const char* chunkname) {
+int NAKED __cdecl load_recovered(lua_State* L, void* reader, void* data, const char* chunkname) {
 	__asm {
 		mov eax, [esp + 0x10];
 		sub esp, 0x14;

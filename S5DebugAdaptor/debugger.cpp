@@ -275,7 +275,7 @@ std::string debug_lua::Debugger::OutputString(lua::State L, int n)
 std::string debug_lua::Debugger::ToDebugString_Format::LuaFuncSourceFormat(lua::State L, int index, const lua::DebugInfo& d)
 {
     L.PushLightUserdata(&Debugger::Hook);
-    L.GetTableRaw(lua::State::REGISTRYINDEX);
+    L.GetTableRaw(lua::State::RegistryIndex);
     auto th = static_cast<Debugger*>(L.ToUserdata(-1));
     L.Pop(1);
     auto src = d.Source == nullptr ? "" : th->FindSource(th->GetState(L.GetState()), d.Source);
@@ -426,18 +426,18 @@ void debug_lua::Debugger::InitializeLua(lua::State L, bool mainmenu, lua::CFunct
 {
     L.PushLightUserdata(&Debugger::Hook);
     L.PushLightUserdata(this);
-    L.SetTableRaw(lua::State::REGISTRYINDEX);
+    L.SetTableRaw(lua::State::RegistryIndex);
 
     std::array lib{
-        lua::FuncReference::GetRef<Debugger, &Debugger::Log>(*this, "Log"),
-        lua::FuncReference::GetRef<Debugger, &Debugger::IsDebuggerAttached>(*this, "IsDebuggerAttached"),
+        lua::FuncReference::GetRef<&Debugger::Log>(*this, "Log"),
+        lua::FuncReference::GetRef<&Debugger::IsDebuggerAttached>(*this, "IsDebuggerAttached"),
         lua::FuncReference::GetRef<&Debugger::SetLocal>("SetLocal"),
         lua::FuncReference::GetRef<&Debugger::GetLocal>("GetLocal"),
         lua::FuncReference::GetRef<&Debugger::SetUpvalue>("SetUpvalue"),
         lua::FuncReference::GetRef<&Debugger::GetUpvalue>("GetUpvalue"),
         lua::FuncReference::GetRef<&Debugger::WriteTableToFile>("WriteTableToFile"),
         lua::FuncReference{"ShutdownDebugger", shutdown},
-        };
+    };
     L.RegisterGlobalLib(lib, "LuaDebugger");
     if (mainmenu)
         shok::AddGlobalToNotSerialize("LuaDebugger");
@@ -498,7 +498,7 @@ void debug_lua::Debugger::DoAddSource(DebugState& s, std::string_view src)
 void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
 {
     L.PushLightUserdata(&Debugger::Hook);
-    L.GetTableRaw(lua::State::REGISTRYINDEX);
+    L.GetTableRaw(lua::State::RegistryIndex);
     auto* th = static_cast<Debugger*>(L.ToUserdata(-1));
     L.Pop(1);
     auto& s = th->GetState(L.GetState());
@@ -576,7 +576,7 @@ void debug_lua::Debugger::Hook(lua::State L, lua::ActivationRecord ar)
 int debug_lua::Debugger::ErrorFunc(lua::State L)
 {
     L.PushLightUserdata(&Debugger::Hook);
-    L.GetTableRaw(lua::State::REGISTRYINDEX);
+    L.GetTableRaw(lua::State::RegistryIndex);
     auto th = static_cast<Debugger*>(L.ToUserdata(-1));
     L.Pop(1);
 
@@ -586,8 +586,8 @@ int debug_lua::Debugger::ErrorFunc(lua::State L)
         return 1;
 
     BreakSettings tocheck = BreakSettings::PCall;
-    if (L.IsLightUserdata(lua::State::Upvalueindex(1))) {
-        auto* di = static_cast<lua::DebugInfo*>(L.ToUserdata(lua::State::Upvalueindex(1)));
+    if (L.IsLightUserdata(lua::State::UpvalueIndex(1))) {
+        auto* di = static_cast<lua::DebugInfo*>(L.ToUserdata(lua::State::UpvalueIndex(1)));
         if (di->What == std::string_view("C") && di->NameWhat == std::string_view("global") && (di->Name == std::string_view("xpcall") || di->Name == std::string_view("pcall")))
             tocheck = BreakSettings::XPCall;
     }
@@ -611,7 +611,7 @@ void debug_lua::Debugger::SyntaxErrorFunc(lua_State* l, int err)
 {
     lua::State L{ l };
     L.PushLightUserdata(&Debugger::Hook);
-    L.GetTableRaw(lua::State::REGISTRYINDEX);
+    L.GetTableRaw(lua::State::RegistryIndex);
     auto th = static_cast<Debugger*>(L.ToUserdata(-1));
     L.Pop(1);
 

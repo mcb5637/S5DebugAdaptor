@@ -4,3 +4,13 @@
 #define NOMINMAX
 // Windows Header Files
 #include <windows.h>
+
+#ifdef USE_CLANG_NAKED
+#define NAKED_DECL __attribute((naked))
+#define NAKED_DEF
+#define NAKED __attribute((naked))
+#else
+#define NAKED_DEF __declspec(naked)
+#define NAKED_DECL
+#define NAKED __declspec(naked)
+#endif

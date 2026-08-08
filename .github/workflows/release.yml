@@ -1,0 +1,55 @@
+name: release.yml
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build_cpp:
+    name: build cpp
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup Cpp
+        uses: aminya/setup-cpp@v1
+        with:
+          compiler: msvc
+          vcvarsall: true
+
+          cmake: 4.2.2
+          ninja: true
+          vcpkg: false
+          ccache: false
+          clangtidy: false
+          conan: true
+
+
+          cppcheck: false
+
+          gcovr: false
+          opencppcoverage: false
+
+      - uses: actions/cache@v5
+        with:
+          key: win-msvc-lua
+          path: |
+            S5DebugAdaptor/luapp/lua
+            ~/.conan2/p
+
+      - name: setup lua
+        run:
+          ./setup_lua.bat
+
+      - name: Get dependency provider
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/add_conan_provider@main
+
+      - name: Configure CMake
+        run: |
+          cmake -S . -B ./build "-DCMAKE_BUILD_TYPE=Release" -A Win32 -DCMAKE_SYSTEM_PROCESSOR=X86 "-DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake"
+
+      - name: Build
+        run: |
+          cmake --build ./build --parallel 4

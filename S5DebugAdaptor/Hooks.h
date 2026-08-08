@@ -18,7 +18,7 @@ namespace debug_lua {
 		static int __cdecl LoadOverride_Dbg(lua_State* L, void* reader, void* data, const char* chunkname, const char* mode);
 		static int __cdecl PCallOverride_Dbg(lua_State* L, int nargs, int nresults, int errfunc, ptrdiff_t* ctx, void* k);
 
-		static void __attribute((naked)) WinProcASM();
+		static void NAKED_DECL WinProcASM();
 	public:
 		static void InstallHook();
 

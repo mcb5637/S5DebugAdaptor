@@ -363,7 +363,7 @@ namespace BB {
 		static inline constexpr int vtp = 0x77FABC;
 
 		DirectoryEntry* SearchByHash(const char* filename);
-		DirectoryEntry* GetByOffset(size_t offset) const;
+		[[nodiscard]] DirectoryEntry* GetByOffset(size_t offset) const;
 
 		static inline CBBArchiveFile* (__stdcall* const Create)() = reinterpret_cast<CBBArchiveFile * (__stdcall*)()>(0x551701);
 		static std::unique_ptr<CBBArchiveFile, CppLogic::DestroyCaller<CBBArchiveFile>> CreateUnique();
@@ -404,6 +404,9 @@ namespace BB {
 		static inline const char* (__cdecl* const PathGetExtension)(const char* path) = reinterpret_cast<const char* (__cdecl*)(const char*)>(0x40BAB3);
 
 		static bool DoesFileExist(const char* name);
+
+		using OpenFileStreamWithSourceT = std::pair<std::string_view, std::unique_ptr<BB::IStream>> (BB::CFileSystemMgr::*)(const char* path, BB::IStream::Flags f, bool openArchive);
+		static OpenFileStreamWithSourceT OpenFileStreamWithSource;
 	};
 	//constexpr int i = offsetof(CFileSystemMgr, Override) / 4;
 

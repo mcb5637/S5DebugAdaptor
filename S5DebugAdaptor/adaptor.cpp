@@ -656,7 +656,15 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 		});
 
 	Dbg.Handler = this;
-	Session->bind(socket);
+	Session->bind(socket, [&]() {
+		{
+			std::lock_guard<std::mutex> lock(MutexTerminate);
+			TerminateDebugger = true;
+			Dbg.Handler = nullptr;
+			Dbg.Command(Debugger::Request::Resume);
+		}
+		ConditionTerminate.notify_one();
+	});
 }
 
 // encoded: lowest->highest bit: 2 state, 18 bits frame, 2 bits scope, 10 bits variable

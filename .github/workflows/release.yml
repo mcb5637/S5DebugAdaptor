@@ -70,10 +70,10 @@ jobs:
         run: |
           cd extension
           npm run startpackagepipeline
-
-      - uses: actions/upload-artifact@v4
-        with:
-          #TODO: Get Version by something, as long as no update, the version can stay
-          path: ./extension/S5LuaDebuggerAdaptor-1.0.0.vsix
-          name: "${{ matrix.artifact }}"
-          overwrite: true
+#          
+#      - uses: actions/upload-artifact@v4
+#        with:
+#         #TODO: Get Version by something, as long as no update, the version can stay
+#          path: ./extension/S5LuaDebuggerAdaptor-1.0.0.vsix
+#          name: "${{ matrix.artifact }}"
+#          overwrite: true

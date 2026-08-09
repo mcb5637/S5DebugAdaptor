@@ -53,6 +53,19 @@ jobs:
       - name: Build
         run: |
           cmake --build ./build --parallel 4
+
+      - name: release dir
+        run: |
+          mkdir ./Release
+          cp /build/LuaDebugger.dll /Release/LuaDebugger.dll
+          cp /build/LuaDebugger.pdb /Release/LuaDebugger.pdb
+
+      - uses: actions/upload-artifact@v4
+        with:
+          path: ./Release
+          name: debugger_dll
+          overwrite: true
+
   
   buildExtension:
     name: Build VSCode Extension
@@ -70,10 +83,73 @@ jobs:
         run: |
           cd extension
           npm run startpackagepipeline
-#          
-#      - uses: actions/upload-artifact@v4
-#        with:
-#         #TODO: Get Version by something, as long as no update, the version can stay
-#          path: ./extension/S5LuaDebuggerAdaptor-1.0.0.vsix
-#          name: "${{ matrix.artifact }}"
-#          overwrite: true
+
+      - name: package
+        run: |
+          mkdir ext
+          EXTVER="$(jq ".version" extension/package.json | tail -c +2 | head -c -2)"
+          cp ./extension/S5LuaDebuggerAdaptor-${EXTVER}.vsix ./ext/S5LuaDebuggerAdaptor-${EXTVER}.vsix
+          echo ${EXTVER} > ext/debuggerlatestextension.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          path: ./ext
+          name: extension
+          overwrite: true
+
+
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    needs:
+      - build_cpp
+      - buildExtension
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: debugger_dll
+          path: ./Release
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: extension
+          path: ./ext
+
+      - name: zip release
+        run: |
+          sudo apt install zip
+          cd ./Release
+          zip -r ../Release.zip .
+          cd ../
+          
+          echo "EXT_VER=$(jq ".version" extension/package.json | tail -c +2 | head -c -2)" >> $GITHUB_ENV
+          
+          wget https://github.com/mcb5637/S5Updater/releases/download/nightly/HashFileBuilder
+          chmod u+x HashFileBuilder 
+          ./HashFileBuilder LuaDebuggerFile.dll ./Release/LuaDebugger.dll > ./debuggerhashes.txt
+
+      - name: Delete tag
+        run: gh release delete nightly --cleanup-tag -y || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          body: "latest code from master"
+          prerelease: true
+          files: |
+            ./Release.zip
+            ./ext/S5LuaDebuggerAdaptor-${{ EXT_VER }}.vsix
+            ./ext/debuggerlatestextension.txt
+            ./debuggerhashes.txt
+          name: nightly
+          tag_name: nightly
+          fail_on_unmatched_files: true
+          target_commitish: master
+          generate_release_notes: false
+          append_body: false
+          make_latest: false

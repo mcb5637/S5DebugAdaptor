@@ -52,13 +52,13 @@ jobs:
 
       - name: Build
         run: |
-          cmake --build ./build --parallel 4
+          cmake --build ./build --parallel 4 --config Release
 
       - name: release dir
         run: |
           mkdir ./Release
-          cp /build/LuaDebugger.dll /Release/LuaDebugger.dll
-          cp /build/LuaDebugger.pdb /Release/LuaDebugger.pdb
+          cp /build/Release/LuaDebugger.dll /Release/LuaDebugger.dll
+          cp /build/Release/LuaDebugger.pdb /Release/LuaDebugger.pdb
 
       - uses: actions/upload-artifact@v4
         with:

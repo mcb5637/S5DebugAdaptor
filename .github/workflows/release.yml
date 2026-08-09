@@ -143,7 +143,7 @@ jobs:
           prerelease: true
           files: |
             ./Release.zip
-            ./ext/S5LuaDebuggerAdaptor-${{ EXT_VER }}.vsix
+            ./ext/S5LuaDebuggerAdaptor-${{ env.EXT_VER }}.vsix
             ./ext/debuggerlatestextension.txt
             ./debuggerhashes.txt
           name: nightly

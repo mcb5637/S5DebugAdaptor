@@ -57,8 +57,9 @@ jobs:
       - name: release dir
         run: |
           mkdir ./Release
+          ls ./build/Release/
           cp ./build/Release/LuaDebugger.dll ./Release/LuaDebugger.dll
-          cp ./build/Release/LuaDebugger.pdb ./Release/LuaDebugger.pdb
+          #cp ./build/Release/LuaDebugger.pdb ./Release/LuaDebugger.pdb
 
       - uses: actions/upload-artifact@v4
         with:

@@ -1,4 +1,5 @@
 #pragma once
+#include <optional>
 #include <string>
 
 namespace debug_lua {
@@ -13,4 +14,6 @@ namespace debug_lua {
 
 		bool Show();
 	};
+
+	std::optional<std::string> GetEnvVariable(const char* var);
 }

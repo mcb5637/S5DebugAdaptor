@@ -35,3 +35,17 @@ bool debug_lua::FileDialog::Show()
 	op.lpstrTitle = Title;
 	return GetOpenFileName(&op);
 }
+
+std::optional<std::string> debug_lua::GetEnvVariable(const char* var) {
+	std::string r{};
+	r.resize(200);
+	auto s = GetEnvironmentVariable(var, r.data(), r.size());
+	if (s >= r.size()) {
+		r.resize(s + 2);
+		s = GetEnvironmentVariable(var, r.data(), r.size());
+	}
+	if (s == 0 && GetLastError() == ERROR_ENVVAR_NOT_FOUND)
+		return std::nullopt;
+	r.resize(s);
+	return r;
+}

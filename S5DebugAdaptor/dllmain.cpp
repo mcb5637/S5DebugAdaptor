@@ -4,6 +4,7 @@
 #include "server.h"
 #include "framework.h"
 #include "shok.h"
+#include "winhelpers.h"
 
 static debug_lua::Debugger debugger{};
 static std::unique_ptr<debug_lua::Server> serv = nullptr;
@@ -64,6 +65,10 @@ extern "C" {
 		dbg.Load();
 		if (dbg.AddLuaState)
 			dbg.AddLuaState(L);
+		if (debug_lua::GetEnvVariable("LUADEBUGGER_WAITATTACH").has_value()) {
+			while (debugger.Handler == nullptr)
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
 		debugger.OnStateAdded(L, nullptr, lua::State::CppToCFunction<ShutdownDebuggerLua>);
 	}
 

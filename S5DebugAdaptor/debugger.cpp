@@ -293,6 +293,8 @@ std::string debug_lua::Debugger::TranslateSourceString(const DebugState& s, std:
         if (!s.MapScriptFile.empty())
             src = s.MapScriptFile;
     }
+	if (src.starts_with('#'))
+		return ANSIToUTF8(src);
     BB::CFileSystemMgr* mng = *BB::CFileSystemMgr::GlobalObj;
     char abs[2001] = {};
     BB::IFileSystem::FileInfo inf{};
@@ -480,7 +482,11 @@ void debug_lua::Debugger::CheckSourcesLoadedFunc(DebugState& s, int idx)
     L.PushValue(idx);
     lua::DebugInfo i = L.Debug_GetInfoForFunc(lua::DebugInfoOptions::Source);
     auto src = i.Source == nullptr ? "" : std::string_view{ i.Source };
-    if (std::find_if(s.SourcesLoaded.begin(), s.SourcesLoaded.end(), [src](const Source& s) { return s.Internal == src; }) == s.SourcesLoaded.end()) {
+	if (src.empty())
+		return;
+	if (src.starts_with('#'))
+		return;
+    if (std::ranges::find_if(s.SourcesLoaded, [src](const Source& s) { return s.Internal == src; }) == s.SourcesLoaded.end()) {
         DoAddSource(s, src);
     }
 }

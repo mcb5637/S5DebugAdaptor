@@ -546,6 +546,12 @@ debug_lua::Adaptor::Adaptor(Debugger& d, const std::shared_ptr<dap::ReaderWriter
 						return response;
 					};
 
+					if (request.source->path->starts_with('#')) {
+						dap::SourceResponse response;
+						response.content = request.source->path->substr(1);
+						return response;
+					}
+
 					auto file = UTF8ToANSI(*request.source->path);
 
 					if (request.source->adapterData.has_value() && request.source->adapterData->is<dap::string>()) {

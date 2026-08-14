@@ -445,8 +445,6 @@ void debug_lua::Debugger::InitializeLua(lua::State L, bool mainmenu, lua::CFunct
 
 void debug_lua::Debugger::CheckSourcesLoaded(DebugState& s)
 {
-    if (s.SourcesLoaded.size() > 2) // modloader, userscript
-        return;
     lua::State L{ s.L };
     int t = L.GetTop();
     L.PushGlobalTable();

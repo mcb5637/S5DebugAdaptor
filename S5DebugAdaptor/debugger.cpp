@@ -235,13 +235,13 @@ int debug_lua::Debugger::EvaluateInContext(std::string_view s, lua::State L, int
             var.append("r");
         }
     }
-    std::string asstatement = std::format("{0}local {1} = function()\r\n{3}\r\nend\r\n{1} = {{{1}()}}\r\n{2}return unpack({1})", pre, var, post, s);
-    std::string asexpresion = std::format("{0}local {1} = function()\r\nreturn {3}\r\nend\r\n{1} = {{{1}()}}\r\n{2}return unpack({1})", pre, var, post, s);
+    std::string asstatement = std::format("#{0}local {1} = function()\r\n{3}\r\nend\r\n{1} = {{{1}()}}\r\n{2}return unpack({1})", pre, var, post, s);
+    std::string asexpresion = std::format("#{0}local {1} = function()\r\nreturn {3}\r\nend\r\n{1} = {{{1}()}}\r\n{2}return unpack({1})", pre, var, post, s);
     try {
-        return L.DoStringT(asexpresion, "from console");
+        return L.DoStringT(std::string_view(asexpresion).substr(1), asexpresion.c_str());
     }
     catch (const lua::LuaException&) {}
-    return L.DoStringT(asstatement, "from console");
+    return L.DoStringT(std::string_view(asstatement).substr(1), asstatement.c_str());
 }
 
 bool debug_lua::Debugger::IsIdentifier(std::string_view s)

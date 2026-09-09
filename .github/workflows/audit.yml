@@ -1,0 +1,39 @@
+name: audit.yml
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  conan_audit:
+    name: build cpp
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup Cpp
+        uses: aminya/setup-cpp@v1
+        with:
+          compiler: msvc
+          vcvarsall: true
+
+          cmake: 4.2.2
+          ninja: true
+          vcpkg: false
+          ccache: false
+          clangtidy: false
+          conan: true
+
+
+          cppcheck: false
+
+          gcovr: false
+          opencppcoverage: false
+
+      - name: setup audit token
+        run: conan audit provider auth conancenter --token=${{ secrets.CONAN_AUDIT_TOKEN }}
+
+      - name: run scan
+        run: conan audit scan .

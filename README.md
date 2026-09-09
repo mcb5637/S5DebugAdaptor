@@ -11,16 +11,18 @@ you need 3 things for this to work:
   modify the program and args to match the shok installation you want to debug.
 
 then either start shok manually and attach to it or let vsc launch it and attach to it.
-<br>
-<br>
-<br>
+
+
+
 # VSCode Extension
 ##### by [schmeling65](https://github.com/schmeling65)
-<br>
+
+
 
 A VSCode extension based on Typescript. Allows to connect with the DAP-Server of the S5DebugAdaptor.
-<br>
-<br>
+
+
+
 
 ## Building
 
@@ -28,7 +30,8 @@ A VSCode extension based on Typescript. Allows to connect with the DAP-Server of
 
 - NodeJS v22.21.1 used in development
 - Visual Studio Code v1.131.0 used in development
-<br>
+
+
 ### Steps
 
 
@@ -36,7 +39,17 @@ A VSCode extension based on Typescript. Allows to connect with the DAP-Server of
 2. Go into the `extension` directory
 3. Run the command `npm run startpackagepipeline`
 5. Output: A vsix-file.
-<br>
+
+
+
+### updating
+- make sure npm is installed
+- `npm install`
+- `npm update`
+- check if it still builds
+
+
+
 ## Installation
 
 Go to the directory your vsix-file is located in.

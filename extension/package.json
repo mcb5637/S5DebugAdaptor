@@ -8,7 +8,7 @@
   "categories": ["Other","Debuggers"],
   "type": "module",
   "engines": {
-    "vscode": "^1.125.0"
+    "vscode": "^1.136.0"
   },
   "repository": {
     "type": "git",

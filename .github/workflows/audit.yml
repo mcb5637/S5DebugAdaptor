@@ -33,7 +33,9 @@ jobs:
           opencppcoverage: false
 
       - name: setup audit token
-        run: conan audit provider auth conancenter --token=${{ secrets.CONAN_AUDIT_TOKEN }}
+        run: |
+          conan profile detect
+          conan audit provider auth conancenter --token=${{ secrets.CONAN_AUDIT_TOKEN }}
 
       - name: run scan
         run: conan audit scan .
